@@ -6,7 +6,8 @@ from typing import Any
 
 import pytest
 
-# tests -> backend -> repo root; resolved from this file so it never depends on the working directory.
+# tests -> backend -> repo root. Resolved from this file, so it never depends
+# on the working directory.
 CONTRACT_DIR = Path(__file__).resolve().parents[2] / "contract"
 
 
@@ -18,7 +19,9 @@ def load_contract(name: str) -> Any:
 def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     if "normalize_case" in metafunc.fixturenames:
         cases = load_contract("corpus.json")["normalize"]
-        metafunc.parametrize("normalize_case", cases, ids=[repr(c["in"]) for c in cases])
+        metafunc.parametrize(
+            "normalize_case", cases, ids=[repr(c["in"]) for c in cases]
+        )
 
 
 @pytest.fixture
