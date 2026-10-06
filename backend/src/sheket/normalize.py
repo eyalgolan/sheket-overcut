@@ -16,7 +16,7 @@ import re
 # Must equal call_numbers.items.pattern in contract/blocklist.schema.json.
 E164 = re.compile(r"^\+[1-9][0-9]{6,14}$")
 
-_PHONE_CHARS = re.compile(r"\+?[0-9 ()\-]+")
+_PHONE_CHARS = re.compile(r"\+?[0-9 ()\-]*")
 _STAR_CODE = re.compile(r"\*[0-9]{2,6}")
 _IL_INTERNATIONAL = re.compile(r"972[0-9]{8,9}")
 _IL_NATIONAL = re.compile(r"0[0-9]{8,9}")
