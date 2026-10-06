@@ -5,7 +5,7 @@ import re
 # The `call_numbers` pattern ^\+[1-9][0-9]{6,14}$ from contract/blocklist.schema.json,
 # applied with fullmatch.
 E164 = re.compile(r"\+[1-9][0-9]{6,14}")
-PHONE_LIKE = re.compile(r"\+?[0-9 ()\-]+")
+PHONE_LIKE = re.compile(r"\+?[0-9 ()\-]*")
 STAR_CODE = re.compile(r"\*[0-9]{2,6}")
 SENDER_ID_MAX = 20
 
