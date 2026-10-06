@@ -56,9 +56,26 @@ def pytest_generate_tests(metafunc):
         )
 
 
+class _NoAwsClient:
+    """Stands in for the report handler's DynamoDB client outside moto.
+
+    Any use fails the test, so a test that forgets ``ddb_table`` (or a stub
+    client) can never send a request to real AWS.
+    """
+
+    def __getattr__(self, name):
+        raise AssertionError("no moto: request ddb_table or set a stub client")
+
+
 @pytest.fixture(autouse=True)
 def aws_env(monkeypatch, tmp_path):
-    """Replace any real AWS configuration with dummy values for every test."""
+    """Replace any real AWS configuration with dummy values for every test.
+
+    The handler's cached client is replaced with ``_NoAwsClient``; the
+    ``ddb_table`` fixture resets it so a moto client is created instead.
+    """
+    from sheket import report
+
     for name in (
         "AWS_PROFILE",
         "AWS_DEFAULT_PROFILE",
@@ -75,6 +92,7 @@ def aws_env(monkeypatch, tmp_path):
     monkeypatch.setenv("AWS_DEFAULT_REGION", "us-east-1")
     monkeypatch.setenv("TABLE_NAME", TABLE_NAME)
     monkeypatch.setenv("IP_HASH_SALT", TEST_IP_HASH_SALT)
+    monkeypatch.setattr(report, "_client", _NoAwsClient())
 
 
 @pytest.fixture
