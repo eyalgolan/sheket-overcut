@@ -391,9 +391,7 @@ def test_output_key_order_and_no_never_block(curated):
     assert "never_block" not in serialize_blocklist(doc)
 
 
-def test_empty_build_equals_seed_byte_for_byte_apart_from_version(
-    curated, seed_text
-):
+def test_empty_build_equals_seed_byte_for_byte_apart_from_version(curated, seed_text):
     doc = build(curated, now=NOW + 12345)
     seed = json.loads(seed_text)
     assert doc["version"] != seed["version"]
@@ -433,7 +431,9 @@ def test_lists_are_sorted(curated):
 
 def test_serialisation_format():
     doc = {"schema": 1, "text": "קלפי"}
-    assert serialize_blocklist(doc) == json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
+    assert (
+        serialize_blocklist(doc) == json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
+    )
     assert serialize_blocklist(doc).endswith("}\n")
     assert "קלפי" in serialize_blocklist(doc)  # not \u-escaped
 
@@ -462,9 +462,7 @@ def test_inputs_are_not_mutated(curated):
     assert (custom, reports, overrides) == before
     for key in ("call_prefixes", "sms_keywords", "sms_allow_senders"):
         assert doc[key] is not custom[key]
-    assert all(
-        a is not b for a, b in zip(doc["sms_keywords"], custom["sms_keywords"])
-    )
+    assert all(a is not b for a, b in zip(doc["sms_keywords"], custom["sms_keywords"]))
 
 
 def test_reports_may_be_a_one_shot_iterable(curated):

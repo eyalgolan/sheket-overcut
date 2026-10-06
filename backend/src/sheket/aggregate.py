@@ -175,9 +175,7 @@ def _published(
 
 def _generated_at(version: int) -> str:
     """Return ``version`` (Unix seconds) as an RFC 3339 UTC string ending in Z."""
-    return datetime.fromtimestamp(version, timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
+    return datetime.fromtimestamp(version, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def build_blocklist(
@@ -202,9 +200,7 @@ def build_blocklist(
     """
     version = max(int(now), int(previous_version) + 1)
     force_call, force_sms, never = _parse_overrides(curated["never_block"], overrides)
-    published_call, published_sms = _published(
-        reports, now, min_installs, min_networks
-    )
+    published_call, published_sms = _published(reports, now, min_installs, min_networks)
 
     call_numbers = sorted(
         (set(curated["call_numbers"]) | published_call | force_call) - never
