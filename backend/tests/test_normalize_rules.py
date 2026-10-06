@@ -320,13 +320,20 @@ def test_corpus_sms_senders_normalise_sanely(corpus):
     _assert_normalises_sanely([c["sender"] for c in corpus["sms"]])
 
 
-def test_test_blocklist_senders_normalise_exactly(contract_loader):
+def test_test_blocklist_entries_normalise_per_contract(contract_loader):
+    # contract/README.md: list senders may be in any form and clients
+    # normalise both sides, so assert the contract's rule, not an exact value.
     blocklist = contract_loader("test-blocklist.json")
     senders = blocklist["sms_senders"] + blocklist["sms_allow_senders"]
     assert senders
     for sender in senders:
-        expected = sender if is_e164(sender) else sender.casefold()
-        assert normalize_sender(sender) == expected, sender
+        n = normalize_sender(sender)
+        assert n is not None, sender
+        assert normalize_sender(n) == n, (sender, n)
+        if is_e164(sender):
+            # A listed number must never turn into a different number.
+            assert n == sender, (sender, n)
+    # The schema guarantees call_numbers are E.164, so they stay exactly.
     assert blocklist["call_numbers"]
     for number in blocklist["call_numbers"]:
         assert normalize_sender(number) == number
