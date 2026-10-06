@@ -12,8 +12,10 @@ the source IP.
 
 Provisional values, named here in one place:
 
-- The request body is capped at 8 KiB (``MAX_BODY_BYTES``), measured on the
-  raw body bytes after any base64 decoding.
+- The request body is capped at 16 KiB (``MAX_BODY_BYTES``), measured on the
+  raw body bytes after any base64 decoding. The cap fits the largest valid
+  report even when its JSON escapes non-ASCII as ``\\uXXXX``: 1000 non-BMP
+  characters of ``text`` alone take 12,000 bytes that way.
 - ``app_version`` must fully match ``[0-9A-Za-z.+\\-]{1,32}``
   (``_APP_VERSION``).
 - A "day" for the per-install limit is a UTC calendar day.
@@ -51,7 +53,7 @@ from botocore.exceptions import ClientError
 from sheket.normalize import is_e164, normalize_sender
 
 ROUTE_PATH = "/v1/reports"
-MAX_BODY_BYTES = 8192
+MAX_BODY_BYTES = 16384
 MAX_TEXT_CHARS = 1000
 INSTALL_DAILY_LIMIT = 20
 IP_HOURLY_LIMIT = 60

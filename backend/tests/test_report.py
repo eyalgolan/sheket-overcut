@@ -239,20 +239,21 @@ def _padded_body(size):
     return json.dumps(payload(pad="x" * pad))
 
 
-def test_body_of_exactly_8_kib_is_accepted(ddb_table):
+def test_body_at_cap_is_accepted(ddb_table):
     raw = _padded_body(report.MAX_BODY_BYTES)
-    assert len(raw.encode("utf-8")) == 8192
+    assert len(raw.encode("utf-8")) == report.MAX_BODY_BYTES
     assert post(raw_body=raw)[0] == 202
 
 
-def test_body_over_8_kib_is_400(no_ddb):
+def test_body_over_cap_is_400(no_ddb):
     raw = _padded_body(report.MAX_BODY_BYTES + 1)
     assert post(raw_body=raw)[:2] == (400, {"error": "body"})
 
 
 def test_body_cap_is_measured_after_base64_decoding(ddb_table):
     raw = _padded_body(report.MAX_BODY_BYTES)
-    # The base64 text is about 11 KiB, but the decoded body is exactly 8 KiB.
+    # The base64 text is a third longer, but the decoded body is exactly at
+    # the cap.
     assert post(raw_body=raw, b64=True)[0] == 202
     raw = _padded_body(report.MAX_BODY_BYTES + 1)
     assert post(raw_body=raw, b64=True)[:2] == (400, {"error": "body"})
@@ -452,6 +453,24 @@ def test_text_limit_counts_code_points(ddb_table, char):
     assert item["text"] == {"S": text}
     assert post(payload(text=text + char))[:2] == (400, {"error": "text"})
     assert len(reports(ddb_table)) == 1
+
+
+def test_worst_case_escaped_1000_char_text_is_accepted(ddb_table):
+    # The largest valid report, from a client whose JSON encoder escapes
+    # non-ASCII as \uXXXX: each non-BMP character becomes a 12-byte
+    # surrogate pair.
+    text = "🗳" * report.MAX_TEXT_CHARS
+    body = payload(
+        platform="android",
+        sender="🗳" * 20,
+        text=text,
+        app_version="9" * 32,
+    )
+    raw = json.dumps(body, ensure_ascii=True)
+    assert 8192 < len(raw.encode("utf-8")) <= report.MAX_BODY_BYTES
+    assert post(raw_body=raw)[0] == 202
+    (item,) = reports(ddb_table)
+    assert item["text"] == {"S": text}
 
 
 def test_text_on_call_report_is_400(no_ddb):
