@@ -19,6 +19,7 @@ import pytest
 from botocore.exceptions import ClientError
 
 from sheket import report
+from sheket.normalize import is_e164
 
 INSTALL_ID = "3f0e4c1e-6a0b-4f5e-9d0a-2f6c1b7a9e11"
 SOURCE_IP = "203.0.113.57"
@@ -411,6 +412,33 @@ def test_sms_sender_is_normalised(ddb_table, raw, stored):
     assert post(payload(sender=raw))[0] == 202
     (item,) = reports(ddb_table)
     assert item["sender"] == {"S": stored}
+
+
+def test_report_sms_sender_matches_corpus(ddb_table, normalize_case):
+    # contract/README.md: every spelling in the corpus counts as one sender
+    # everywhere, reports included.
+    out = normalize_case["out"]
+    status, body, _ = post(payload(sender=normalize_case["in"]))
+    if out is None:
+        assert (status, body) == (400, {"error": "sender"})
+        assert scan_all(ddb_table) == []
+    else:
+        assert status == 202
+        (item,) = reports(ddb_table)
+        assert item["sender"] == {"S": out}
+
+
+def test_report_call_sender_matches_corpus(ddb_table, normalize_case):
+    # A call report also needs the normalised sender to be an E.164 number.
+    out = normalize_case["out"]
+    status, body, _ = post(call_payload(sender=normalize_case["in"]))
+    if out is not None and is_e164(out):
+        assert status == 202
+        (item,) = reports(ddb_table)
+        assert item["sender"] == {"S": out}
+    else:
+        assert (status, body) == (400, {"error": "sender"})
+        assert scan_all(ddb_table) == []
 
 
 # --- AC-3: text length --------------------------------------------------------
