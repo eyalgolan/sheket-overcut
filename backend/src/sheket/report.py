@@ -2,7 +2,13 @@
 
 The binding definition is spec section 6.2 (``docs/spec.md``); the module
 layout follows design Phase 2 (design comment on issue #1). The Function URL
-delivers API Gateway payload format version 2.0.
+delivers API Gateway payload format version 2.0; the entry point is
+``sheket.report.handler``.
+
+Responses: ``202 {}`` accepted; ``400 {"error": "<field>"}`` malformed;
+``404`` any other path; ``405`` any other method; ``429`` rate limited.
+Each request logs one INFO outcome line and never logs request content or
+the source IP.
 
 Provisional values, named here in one place:
 
@@ -379,3 +385,40 @@ def _write(items: list[dict]) -> bool:
             if attempt + 1 < _WRITE_ATTEMPTS:
                 time.sleep(random.uniform(0, 0.1))
     return False
+
+
+def handler(event: dict, context: object) -> dict:
+    """Handle a Function URL payload v2.0 request for ``POST /v1/reports``.
+
+    Validation runs before any salt, source-IP, clock or DynamoDB work
+    (AC-10). Unexpected errors propagate to the Lambda Errors alarm (design
+    Phase 2.6). Exactly one INFO line is logged per outcome, carrying only
+    fixed outcome names and validated values (AC-5).
+    """
+    if event.get("rawPath") != ROUTE_PATH:
+        logger.info("report outcome=%s", "not_found")
+        return _response(404, {"error": "not_found"})
+    if event["requestContext"]["http"]["method"] != "POST":
+        logger.info("report outcome=%s", "method_not_allowed")
+        return _response(405, {"error": "method_not_allowed"}, {"Allow": "POST"})
+
+    fields, field = _validate(event)
+    if fields is None:
+        logger.info("report outcome=%s field=%s", "rejected", field)
+        return _response(400, {"error": field})
+
+    now = _now()
+    net_hash, ip_key = _network_hashes(
+        event["requestContext"]["http"]["sourceIp"], _salt()
+    )
+    items = _transact_items(fields, net_hash, ip_key, now)
+    outcome = "accepted" if _write(items) else "rate_limited"
+    logger.info(
+        "report outcome=%s kind=%s platform=%s",
+        outcome,
+        fields["kind"],
+        fields["platform"],
+    )
+    if outcome == "accepted":
+        return _response(202, {})
+    return _response(429, {"error": "rate_limited"})
