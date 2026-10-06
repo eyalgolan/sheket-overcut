@@ -1,0 +1,36 @@
+name: android
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "android/**"
+      - "contract/**"
+      - ".github/workflows/android.yml"
+  pull_request:
+    paths:
+      - "android/**"
+      - "contract/**"
+      - ".github/workflows/android.yml"
+
+# Read the repository and nothing else. No AWS credentials exist in this
+# workflow.
+permissions:
+  contents: read
+
+jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: ./gradlew testDebugUnitTest

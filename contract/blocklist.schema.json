@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Sheket blocklist, schema 1",
+  "description": "GET /v1/blocklist.json. Spec section 6.1. A document that fails this schema is rejected whole and the previous list is kept.",
+  "type": "object",
+  "required": [
+    "schema",
+    "version",
+    "generated_at",
+    "call_numbers",
+    "call_prefixes",
+    "sms_senders",
+    "sms_keywords",
+    "sms_allow_senders"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema": {
+      "const": 1
+    },
+    "version": {
+      "description": "Generation time in Unix seconds. Only increases; a client ignores a list whose version is not greater than the one it holds.",
+      "type": "integer"
+    },
+    "generated_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "call_numbers": {
+      "description": "Exact caller numbers, E.164.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^\\+[1-9][0-9]{6,14}$"
+      }
+    },
+    "call_prefixes": {
+      "description": "E.164 prefixes. Android blocks any caller starting with one; iOS expands a prefix only when it leaves at most 4 free digits.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^\\+[1-9][0-9]{3,13}$"
+      }
+    },
+    "sms_senders": {
+      "description": "SMS senders whose messages go to Junk: E.164 numbers or sender IDs, compared case-insensitively.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "sms_keywords": {
+      "description": "Substring keywords matched after normalisation (NFKC, Hebrew niqqud removed, lowercased).",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "text",
+          "strength"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "strength": {
+            "enum": [
+              "strong",
+              "weak"
+            ]
+          }
+        }
+      }
+    },
+    "sms_allow_senders": {
+      "description": "SMS senders that are always allowed. Evaluated before every other SMS rule.",
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    }
+  }
+}

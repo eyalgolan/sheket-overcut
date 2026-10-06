@@ -1,0 +1,26 @@
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+
+# Terraform (state is local and never committed; the lock file is committed)
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+
+# Android
+.gradle/
+build/
+local.properties
+*.keystore
+*.jks
+
+# iOS / Swift
+.build/
+.swiftpm/
+DerivedData/
+xcuserdata/

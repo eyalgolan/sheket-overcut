@@ -1,0 +1,28 @@
+{
+  "schema": 1,
+  "version": 1791201600,
+  "generated_at": "2026-10-05T12:00:00Z",
+  "call_numbers": [
+    "+972555001234",
+    "+972555009876"
+  ],
+  "call_prefixes": [
+    "+97255501",
+    "+9725552"
+  ],
+  "sms_senders": [
+    "+972555004321",
+    "ExampleList",
+    "ExampleParty"
+  ],
+  "sms_keywords": [
+    {"text": "הודעת בחירות", "strength": "strong"},
+    {"text": "голосуйте за", "strength": "strong"},
+    {"text": "בחירות", "strength": "weak"},
+    {"text": "ליכוד", "strength": "weak"},
+    {"text": "קלפי", "strength": "weak"}
+  ],
+  "sms_allow_senders": [
+    "ExampleAllow"
+  ]
+}

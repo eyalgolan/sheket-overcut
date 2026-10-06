@@ -1,0 +1,537 @@
+{
+  "schema": 1,
+  "version": 1791149668,
+  "generated_at": "2026-10-04T21:34:28Z",
+  "call_numbers": [],
+  "call_prefixes": [],
+  "sms_senders": [],
+  "sms_keywords": [
+    {
+      "text": "выборы",
+      "strength": "weak"
+    },
+    {
+      "text": "голосование",
+      "strength": "weak"
+    },
+    {
+      "text": "голосуйте за",
+      "strength": "strong"
+    },
+    {
+      "text": "кнессет",
+      "strength": "weak"
+    },
+    {
+      "text": "предвыборная агитация",
+      "strength": "strong"
+    },
+    {
+      "text": "אגודת ישראל",
+      "strength": "weak"
+    },
+    {
+      "text": "איזנקוט",
+      "strength": "weak"
+    },
+    {
+      "text": "איתמר בן גביר",
+      "strength": "weak"
+    },
+    {
+      "text": "איתמר בן-גביר",
+      "strength": "weak"
+    },
+    {
+      "text": "בחירות",
+      "strength": "weak"
+    },
+    {
+      "text": "גנץ",
+      "strength": "weak"
+    },
+    {
+      "text": "דגל התורה",
+      "strength": "weak"
+    },
+    {
+      "text": "דמוקרטים",
+      "strength": "weak"
+    },
+    {
+      "text": "הודעת בחירות",
+      "strength": "strong"
+    },
+    {
+      "text": "המילואימניקים",
+      "strength": "weak"
+    },
+    {
+      "text": "הצבעה",
+      "strength": "weak"
+    },
+    {
+      "text": "הציונות הדתית",
+      "strength": "weak"
+    },
+    {
+      "text": "הרשימה המשותפת",
+      "strength": "weak"
+    },
+    {
+      "text": "הרשימה הערבית המאוחדת",
+      "strength": "weak"
+    },
+    {
+      "text": "זליכה",
+      "strength": "weak"
+    },
+    {
+      "text": "יאיר גולן",
+      "strength": "weak"
+    },
+    {
+      "text": "יהדות התורה",
+      "strength": "weak"
+    },
+    {
+      "text": "יועז הנדל",
+      "strength": "weak"
+    },
+    {
+      "text": "ישראל ביתנו",
+      "strength": "weak"
+    },
+    {
+      "text": "כחול לבן",
+      "strength": "weak"
+    },
+    {
+      "text": "ליברמן",
+      "strength": "weak"
+    },
+    {
+      "text": "ליכוד",
+      "strength": "weak"
+    },
+    {
+      "text": "מטה הבחירות",
+      "strength": "strong"
+    },
+    {
+      "text": "נפתלי בנט",
+      "strength": "weak"
+    },
+    {
+      "text": "נתניהו",
+      "strength": "weak"
+    },
+    {
+      "text": "סמוטריץ",
+      "strength": "weak"
+    },
+    {
+      "text": "עובדיה יוסף",
+      "strength": "weak"
+    },
+    {
+      "text": "עופר וינטר",
+      "strength": "weak"
+    },
+    {
+      "text": "עוצמה יהודית",
+      "strength": "weak"
+    },
+    {
+      "text": "עמך ישראל",
+      "strength": "weak"
+    },
+    {
+      "text": "פייגלין",
+      "strength": "weak"
+    },
+    {
+      "text": "צביע לאגודת ישראל",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לאיזנקוט",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לאיתמר בן גביר",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לאיתמר בן-גביר",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לבן גביר",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לבן-גביר",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לבנט",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לגולן",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לגנץ",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לדגל התורה",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לדמוקרטים",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע להנדל",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לזליכה",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע ליאיר גולן",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע ליהדות התורה",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע ליועז הנדל",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לישראל ביתנו",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לכחול לבן",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לליברמן",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לליכוד",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע למילואימניקים",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לנפתלי בנט",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לנתניהו",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לסמוטריץ",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לעובדיה יוסף",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לעופר וינטר",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לעוצמה יהודית",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לעמך ישראל",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לפייגלין",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לציונות הדתית",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לרע\"ם",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לרע״ם",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לרשימה המשותפת",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לרשימה הערבית המאוחדת",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לש\"ס",
+      "strength": "strong"
+    },
+    {
+      "text": "צביע לש״ס",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לאגודת ישראל",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לאיזנקוט",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לאיתמר בן גביר",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לאיתמר בן-גביר",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לבן גביר",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לבן-גביר",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לבנט",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לגולן",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לגנץ",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לדגל התורה",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לדמוקרטים",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו להנדל",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לזליכה",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו ליאיר גולן",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו ליהדות התורה",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו ליועז הנדל",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לישראל ביתנו",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לכחול לבן",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לליברמן",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לליכוד",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו למילואימניקים",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לנפתלי בנט",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לנתניהו",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לסמוטריץ",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לעובדיה יוסף",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לעופר וינטר",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לעוצמה יהודית",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לעמך ישראל",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לפייגלין",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לציונות הדתית",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לרע\"ם",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לרע״ם",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לרשימה המשותפת",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לרשימה הערבית המאוחדת",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לש\"ס",
+      "strength": "strong"
+    },
+    {
+      "text": "צביעו לש״ס",
+      "strength": "strong"
+    },
+    {
+      "text": "קלפי",
+      "strength": "weak"
+    },
+    {
+      "text": "רע\"ם",
+      "strength": "weak"
+    },
+    {
+      "text": "רע״ם",
+      "strength": "weak"
+    },
+    {
+      "text": "ש\"ס",
+      "strength": "weak"
+    },
+    {
+      "text": "ש״ס",
+      "strength": "weak"
+    },
+    {
+      "text": "תעמולת בחירות",
+      "strength": "strong"
+    },
+    {
+      "text": "الاقتراع",
+      "strength": "weak"
+    },
+    {
+      "text": "الكنيست",
+      "strength": "weak"
+    },
+    {
+      "text": "انتخابات",
+      "strength": "weak"
+    },
+    {
+      "text": "دعاية انتخابية",
+      "strength": "strong"
+    },
+    {
+      "text": "صوتوا لقائمة",
+      "strength": "strong"
+    },
+    {
+      "text": "صوتوا للقائمة",
+      "strength": "strong"
+    },
+    {
+      "text": "صوّتوا لقائمة",
+      "strength": "strong"
+    },
+    {
+      "text": "صوّتوا للقائمة",
+      "strength": "strong"
+    }
+  ],
+  "sms_allow_senders": [
+    "amazon",
+    "amex",
+    "apple",
+    "bankhapoalim",
+    "bankleumi",
+    "bechirot",
+    "beinleumi",
+    "bit",
+    "btl",
+    "cal",
+    "clalit",
+    "discount",
+    "facebook",
+    "fibi",
+    "google",
+    "gov.il",
+    "hapoalim",
+    "instagram",
+    "isracard",
+    "jerusalem",
+    "leumi",
+    "leumit",
+    "maccabi",
+    "massad",
+    "max",
+    "mercantile",
+    "meuhedet",
+    "microsoft",
+    "mizrahi",
+    "mizrahitft",
+    "mygov",
+    "otsar",
+    "paybox",
+    "paypal",
+    "telegram",
+    "whatsapp",
+    "yahav"
+  ]
+}
