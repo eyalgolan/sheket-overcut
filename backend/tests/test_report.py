@@ -620,13 +620,23 @@ def test_ipv4_net_hash_groups_by_slash_24():
 
 
 def test_ipv6_net_hash_groups_by_slash_48():
-    # Provisional answer to owner Decision 2.
+    # Owner Decision 2.
     a, ka = report._network_hashes("2001:db8:1:aaaa::1", "s")
     b, kb = report._network_hashes("2001:db8:1:bbbb:cccc::2", "s")
     c, _ = report._network_hashes("2001:db8:2::1", "s")
     assert a == b
     assert a != c
     assert ka != kb
+
+
+def test_ipv6_ip_key_groups_by_slash_64():
+    # Owner Decision 2: the per-IP limit applies to the IPv6 /64.
+    _, ka = report._network_hashes("2001:db8:1:2::1", "s")
+    _, kb = report._network_hashes("2001:db8:1:2:ffff:ffff:ffff:ffff", "s")
+    _, kc = report._network_hashes("2001:db8:1:3::1", "s")
+    assert ka == kb
+    assert ka != kc
+    assert ka == hmac.new(b"s", b"ip6:2001:db8:1:2::/64", hashlib.sha256).hexdigest()
 
 
 def test_ipv4_mapped_ipv6_is_treated_as_ipv4():
@@ -769,6 +779,15 @@ def test_ip_limit_resets_on_the_next_hour(ddb_table, clock):
     assert post(payload(install_id=install_id(3)))[0] == 429
     clock.now = datetime(2026, 10, 6, 13, 0, tzinfo=timezone.utc)
     assert post(payload(install_id=install_id(3)))[0] == 202
+
+
+def test_ip_limit_is_per_ipv6_slash_64(ddb_table, clock):
+    _fill_ip_quota("2001:db8:1:2::1")
+    # Another address in the same /64 shares the counter.
+    status = post(payload(install_id=install_id(3)), ip="2001:db8:1:2::ffff")[0]
+    assert status == 429
+    # The next /64 has its own counter.
+    assert post(payload(install_id=install_id(3)), ip="2001:db8:1:3::1")[0] == 202
 
 
 def test_ip_limit_applies_to_ipv6_spellings(ddb_table, clock):

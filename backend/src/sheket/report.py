@@ -20,7 +20,7 @@ Provisional values, named here in one place:
   (``_APP_VERSION``).
 - A "day" for the per-install limit is a UTC calendar day.
 - IPv4 sources are grouped by /24, as the spec says. IPv6 sources are grouped
-  by /48 (provisional answer to owner Decision 2).
+  by /48 for ``net_hash`` and rate-limited per /64 (owner Decision 2).
 - A ``call`` report that carries ``text`` is rejected with
   ``400 {"error": "text"}`` (provisional answer to owner Decision 6).
 
@@ -64,6 +64,7 @@ KINDS = frozenset({"call", "sms"})
 _APP_VERSION = re.compile(r"[0-9A-Za-z.+\-]{1,32}")
 IPV4_PREFIX = 24
 IPV6_PREFIX = 48
+IPV6_RATE_LIMIT_PREFIX = 64
 
 logger = logging.getLogger(__name__)
 # The Lambda runtime's root logger level would otherwise hide INFO records.
@@ -104,9 +105,10 @@ def _network_hashes(source_ip: str, salt: str) -> tuple[str, str]:
 
     ``net_hash`` hashes the source network: the /24 for IPv4, the /48 for
     IPv6. An IPv4-mapped IPv6 address is treated as its IPv4 address.
-    ``ip_key`` hashes the full address in canonical compressed form, for the
-    per-IP rate limit. An invalid or missing source IP is a platform fault, so
-    the ValueError or TypeError propagates.
+    ``ip_key`` is the per-IP rate-limit key. It hashes the full IPv4 address,
+    or the IPv6 /64, since one IPv6 client usually holds a whole /64. An
+    invalid or missing source IP is a platform fault, so the ValueError or
+    TypeError propagates.
     """
     ip = ipaddress.ip_address(source_ip)
     if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
@@ -119,7 +121,11 @@ def _network_hashes(source_ip: str, salt: str) -> tuple[str, str]:
         network = ipaddress.ip_network(f"{ip}/{IPV6_PREFIX}", strict=False)
         net_hash = _hmac(salt, "v6:" + str(network))
 
-    ip_key = _hmac(salt, "ip:" + str(ip))
+    if isinstance(ip, ipaddress.IPv4Address):
+        ip_key = _hmac(salt, "ip:" + str(ip))
+    else:
+        subnet = ipaddress.ip_network(f"{ip}/{IPV6_RATE_LIMIT_PREFIX}", strict=False)
+        ip_key = _hmac(salt, "ip6:" + str(subnet))
     return net_hash, ip_key
 
 
