@@ -54,8 +54,12 @@ def normalize_sender(raw: object) -> str | None:
         digits = re.sub(r"[+ ()\-]", "", s)
         if not digits:
             return None
-        if had_plus or _IL_INTERNATIONAL.fullmatch(digits):
-            candidate = "+" + digits
+        # "+972 (0)55 ..." keeps the national trunk 0 after the country code.
+        # An Israeli national significant number never starts with 0, so drop
+        # it. Short service numbers below still use the digits as written.
+        intl = "972" + digits[4:] if digits.startswith("9720") else digits
+        if had_plus or _IL_INTERNATIONAL.fullmatch(intl):
+            candidate = "+" + intl
         elif _IL_NATIONAL.fullmatch(digits):
             candidate = "+972" + digits[1:]
         elif _SHORT_NUMBER.fullmatch(digits):

@@ -111,6 +111,23 @@ def test_phone_rules(raw, expected):
 
 
 @pytest.mark.parametrize(
+    "raw, expected",
+    [
+        ("+972 (0)55 500 1234", "+972555001234"),
+        ("+9720555001234", "+972555001234"),
+        ("9720555001234", "+972555001234"),
+        ("+972 (0)2 123 4567", "+97221234567"),
+        # Same as the national spelling "05550012": 0 + 7 digits is too short.
+        ("97205550012", None),
+        # A short service number is kept as written, never trunk-stripped.
+        ("97201", "97201"),
+    ],
+)
+def test_trunk_zero_after_972_is_dropped(raw, expected):
+    assert normalize_sender(raw) == expected
+
+
+@pytest.mark.parametrize(
     "raw",
     [
         "05550012345",  # 0 + 10 digits: too long for a national number
