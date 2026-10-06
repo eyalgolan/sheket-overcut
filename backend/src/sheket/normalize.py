@@ -4,6 +4,12 @@ The source of truth for the expected behaviour is the ``normalize`` section of
 ``contract/corpus.json``. A sender normalises to an E.164 number, a short
 service number or star code as written, or a trimmed, case-folded sender ID.
 
+A sender ID contains at least one letter and does not start with ``+`` or
+``*``. Number-shaped input that is not a valid number (dotted or slashed
+spellings, non-ASCII digits, out-of-range star codes) is rejected rather than
+kept as a sender ID, so one number never splits into several senders
+(``contract/README.md``).
+
 Owner Decision 3 (sender IDs with internal spaces) is open; this module
 provisionally rejects them.
 
@@ -33,7 +39,8 @@ def normalize_sender(raw: object) -> str | None:
     """Normalise a raw sender; return the normalised form or None.
 
     See the ``normalize`` cases in ``contract/corpus.json``, the source of
-    truth. Sender IDs containing whitespace are rejected (provisional answer
+    truth. Sender IDs must contain a letter and must not start with ``+`` or
+    ``*``. Sender IDs containing whitespace are rejected (provisional answer
     to owner Decision 3).
     """
     if not isinstance(raw, str):
@@ -59,6 +66,10 @@ def normalize_sender(raw: object) -> str | None:
 
     if _STAR_CODE.fullmatch(s):
         return s
+
+    # Number-shaped input that did not normalise above is never a sender ID.
+    if s[0] in "+*" or not any(c.isalpha() for c in s):
+        return None
 
     f = s.casefold()
     if len(f) > _MAX_SENDER_ID_LEN:

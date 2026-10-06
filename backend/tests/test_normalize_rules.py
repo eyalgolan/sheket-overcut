@@ -208,9 +208,33 @@ def test_sender_ids_with_internal_whitespace_return_none(raw):
     assert normalize_sender(raw) is None
 
 
-def test_non_ascii_digits_are_not_treated_as_a_phone_number():
-    out = normalize_sender("٠٥٥٥٠٠١٢٣٤")
-    assert out is None or not is_e164(out)
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "٠٥٥٥٠٠١٢٣٤",  # Arabic-Indic digits
+        "+٩٧٢٥٥٥٠٠١٢٣٤",  # + then Arabic-Indic digits
+        "０５５５００１２３４",  # fullwidth digits
+        "055.500.1234",  # dotted spelling
+        "+972.55.500.1234",
+        "055/500/1234",  # slashed spelling
+        "++972555001234",  # doubled +
+        "*",  # bare star
+        "*1",  # star code too short
+        "*1234567",  # star code too long
+        "*١٢٣٤",  # star code with Arabic-Indic digits
+    ],
+)
+def test_number_shaped_input_is_never_a_sender_id(raw):
+    # contract/README.md: every spelling of one number is one sender, so a
+    # number that cannot be normalised is rejected, not kept as a sender ID.
+    assert normalize_sender(raw) is None
+
+
+@pytest.mark.parametrize(
+    "raw, expected", [("G-482913", "g-482913"), ("Bank1", "bank1")]
+)
+def test_sender_ids_with_digits_and_a_letter_are_kept(raw, expected):
+    assert normalize_sender(raw) == expected
 
 
 @pytest.mark.parametrize(
