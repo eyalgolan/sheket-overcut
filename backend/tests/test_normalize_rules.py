@@ -111,23 +111,6 @@ def test_phone_rules(raw, expected):
 
 
 @pytest.mark.parametrize(
-    "raw, expected",
-    [
-        ("+972 (0)55 500 1234", "+972555001234"),
-        ("+9720555001234", "+972555001234"),
-        ("9720555001234", "+972555001234"),
-        ("+972 (0)2 123 4567", "+97221234567"),
-        # Same as the national spelling "05550012": 0 + 7 digits is too short.
-        ("97205550012", None),
-        # A short service number is kept as written, never trunk-stripped.
-        ("97201", "97201"),
-    ],
-)
-def test_trunk_zero_after_972_is_dropped(raw, expected):
-    assert normalize_sender(raw) == expected
-
-
-@pytest.mark.parametrize(
     "raw",
     [
         "05550012345",  # 0 + 10 digits: too long for a national number
@@ -140,6 +123,9 @@ def test_trunk_zero_after_972_is_dropped(raw, expected):
         "+0555001234",  # + then 0 is never E.164
         "+123456",  # + then 6 digits: too short for E.164
         "+1234567890123456",  # + then 16 digits: too long for E.164
+        "0055001234",  # 00 is the international prefix, not a national number
+        "001234567",
+        "9720555001234",  # 972 + 10 digits
     ],
 )
 def test_unplaceable_numbers_return_none(raw):
@@ -260,6 +246,43 @@ def test_sender_ids_with_digits_and_a_letter_are_kept(raw, expected):
 def test_normalize_is_idempotent(raw):
     once = normalize_sender(raw)
     assert normalize_sender(once) == once
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [
+        "055-500-1234",
+        "0555001234",
+        "972555001234",
+        "+972 55 500 1234",
+        "(055) 500-1234",
+        "03-555-0123",
+        "97235550123",
+        "+1 212 555 0100",
+        "+44 20 7946 0000",
+        "+9720555001234",
+        "+972 (0)55 500 1234",
+        "+44 (0)20 7946 0000",
+    ],
+)
+def test_phone_outputs_are_stable(raw):
+    once = normalize_sender(raw)
+    assert is_e164(once), (raw, once)
+    assert normalize_sender(once) == once
+
+
+@pytest.mark.parametrize(
+    "raw, expected",
+    [
+        # Design rule 1: a "+" number is kept as written once separators go,
+        # whatever its country, so "(0)" is not special-cased for any country.
+        ("+9720555001234", "+9720555001234"),
+        ("+972 (0)55 500 1234", "+9720555001234"),
+        ("+44 (0)20 7946 0000", "+4402079460000"),
+    ],
+)
+def test_plus_numbers_are_kept_as_written(raw, expected):
+    assert normalize_sender(raw) == expected
 
 
 # --- other contract files ----------------------------------------------------

@@ -25,7 +25,8 @@ E164 = re.compile(r"^\+[1-9][0-9]{6,14}$")
 _PHONE_CHARS = re.compile(r"\+?[0-9 ()\-]*")
 _STAR_CODE = re.compile(r"\*[0-9]{2,6}")
 _IL_INTERNATIONAL = re.compile(r"972[0-9]{8,9}")
-_IL_NATIONAL = re.compile(r"0[0-9]{8,9}")
+# 0 then a non-zero digit: "00" is the international dialling prefix.
+_IL_NATIONAL = re.compile(r"0[1-9][0-9]{7,8}")
 _SHORT_NUMBER = re.compile(r"[1-9][0-9]{2,4}")
 _MAX_SENDER_ID_LEN = 20
 
@@ -54,12 +55,8 @@ def normalize_sender(raw: object) -> str | None:
         digits = re.sub(r"[+ ()\-]", "", s)
         if not digits:
             return None
-        # "+972 (0)55 ..." keeps the national trunk 0 after the country code.
-        # An Israeli national significant number never starts with 0, so drop
-        # it. Short service numbers below still use the digits as written.
-        intl = "972" + digits[4:] if digits.startswith("9720") else digits
-        if had_plus or _IL_INTERNATIONAL.fullmatch(intl):
-            candidate = "+" + intl
+        if had_plus or _IL_INTERNATIONAL.fullmatch(digits):
+            candidate = "+" + digits
         elif _IL_NATIONAL.fullmatch(digits):
             candidate = "+972" + digits[1:]
         elif _SHORT_NUMBER.fullmatch(digits):
