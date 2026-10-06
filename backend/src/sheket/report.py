@@ -35,6 +35,7 @@ import logging
 import os
 import random
 import re
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 
@@ -242,3 +243,139 @@ def _validate(event: dict) -> tuple[dict | None, str | None]:
         "text": text,
         "app_version": app_version,
     }, None
+
+
+# Fixed positions in the transaction; the 429 logic reads cancellation
+# reasons by index.
+_INSTALL_IDX = 0
+_IP_IDX = 1
+_WRITE_ATTEMPTS = 2
+
+
+def _received_at(now: datetime) -> str:
+    """Return ``now`` as ISO-8601 UTC with milliseconds, e.g. ``...T12:00:00.123Z``."""
+    return now.strftime("%Y-%m-%dT%H:%M:%S.") + f"{now.microsecond // 1000:03d}Z"
+
+
+def _day(now: datetime) -> str:
+    """Return the UTC calendar day of ``now`` as ``YYYY-MM-DD``."""
+    return now.strftime("%Y-%m-%d")
+
+
+def _hour(now: datetime) -> str:
+    """Return the UTC hour of ``now`` as ``YYYY-MM-DDTHH``."""
+    return now.strftime("%Y-%m-%dT%H")
+
+
+def _report_ttl(now: datetime) -> int:
+    """Return the report's ``expires_at``: ``REPORT_TTL_SECONDS`` after ``now``."""
+    return int(now.timestamp()) + REPORT_TTL_SECONDS
+
+
+def _install_counter_ttl(now: datetime) -> int:
+    """Return the install counter's ``expires_at``: one day after the day ends."""
+    day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return int((day_start + timedelta(days=1)).timestamp()) + 86400
+
+
+def _ip_counter_ttl(now: datetime) -> int:
+    """Return the IP counter's ``expires_at``: one hour after the hour ends."""
+    hour_start = now.replace(minute=0, second=0, microsecond=0)
+    return int((hour_start + timedelta(hours=1)).timestamp()) + 3600
+
+
+def _report_item(fields: dict, net_hash: str, now: datetime) -> dict:
+    """Build the report item in DynamoDB attribute-value form.
+
+    ``text`` is present only when the request carried it. No source IP, raw
+    or otherwise, is ever stored.
+    """
+    received_at = _received_at(now)
+    item = {
+        "pk": {"S": f"R#{_day(now)}"},
+        "sk": {"S": f"{received_at}#{uuid.uuid4()}"},
+        "install_id": {"S": fields["install_id"]},
+        "platform": {"S": fields["platform"]},
+        "kind": {"S": fields["kind"]},
+        "sender": {"S": fields["sender"]},
+        "app_version": {"S": fields["app_version"]},
+        "received_at": {"S": received_at},
+        "net_hash": {"S": net_hash},
+        "expires_at": {"N": str(_report_ttl(now))},
+    }
+    if fields["text"] is not None:
+        item["text"] = {"S": fields["text"]}
+    return item
+
+
+def _counter_update(pk: str, limit: int, expires_at: int) -> dict:
+    """Build a conditional increment of the counter at ``pk``, capped at ``limit``."""
+    return {
+        "Update": {
+            "TableName": _table_name(),
+            "Key": {"pk": {"S": pk}, "sk": {"S": "-"}},
+            "UpdateExpression": "SET expires_at = :exp ADD #n :one",
+            "ConditionExpression": "attribute_not_exists(#n) OR #n < :lim",
+            "ExpressionAttributeNames": {"#n": "n"},
+            "ExpressionAttributeValues": {
+                ":exp": {"N": str(expires_at)},
+                ":one": {"N": "1"},
+                ":lim": {"N": str(limit)},
+            },
+        }
+    }
+
+
+def _transact_items(
+    fields: dict, net_hash: str, ip_key: str, now: datetime
+) -> list[dict]:
+    """Build the transaction: install counter, IP counter, report, in that order."""
+    return [
+        _counter_update(
+            f"RL#I#{fields['install_id']}#{_day(now)}",
+            INSTALL_DAILY_LIMIT,
+            _install_counter_ttl(now),
+        ),
+        _counter_update(
+            f"RL#A#{ip_key}#{_hour(now)}",
+            IP_HOURLY_LIMIT,
+            _ip_counter_ttl(now),
+        ),
+        {
+            "Put": {
+                "TableName": _table_name(),
+                "Item": _report_item(fields, net_hash, now),
+                "ConditionExpression": "attribute_not_exists(pk)",
+            }
+        },
+    ]
+
+
+def _write(items: list[dict]) -> bool:
+    """Run the transaction; return True if stored, False if rate limited.
+
+    A failed counter condition means a limit is reached. A transaction
+    conflict is retried once after a short jitter; a second conflict is
+    treated as rate limited (design Phase 2.6). A cancelled transaction
+    commits nothing, so the same items, report ``sk`` included, are reused.
+    Any other failure propagates.
+    """
+    for attempt in range(_WRITE_ATTEMPTS):
+        try:
+            _dynamodb().transact_write_items(TransactItems=items)
+            return True
+        except ClientError as e:
+            if e.response["Error"]["Code"] != "TransactionCanceledException":
+                raise
+            codes = [r.get("Code") for r in e.response.get("CancellationReasons", [])]
+            if any(
+                len(codes) > idx and codes[idx] == "ConditionalCheckFailed"
+                for idx in (_INSTALL_IDX, _IP_IDX)
+            ):
+                return False
+            if "TransactionConflict" not in codes:
+                # Includes a failed Put at index 2: an sk collision.
+                raise
+            if attempt + 1 < _WRITE_ATTEMPTS:
+                time.sleep(random.uniform(0, 0.1))
+    return False
