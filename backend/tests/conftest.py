@@ -15,6 +15,16 @@ def load_contract(name):
 
 
 @pytest.fixture(scope="session")
+def contract_dir():
+    return CONTRACT_DIR
+
+
+@pytest.fixture(scope="session")
+def contract_loader():
+    return load_contract
+
+
+@pytest.fixture(scope="session")
 def corpus():
     return load_contract("corpus.json")
 

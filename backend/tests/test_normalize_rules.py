@@ -7,15 +7,13 @@ owner Decision 3 (sender IDs with internal whitespace are rejected).
 
 import pytest
 
-from conftest import CONTRACT_DIR, load_contract
 from sheket.normalize import E164, is_e164, normalize_sender
-
 
 # --- is_e164 -----------------------------------------------------------------
 
 
-def test_e164_pattern_matches_schema_call_numbers_pattern():
-    schema = load_contract("blocklist.schema.json")
+def test_e164_pattern_matches_schema_call_numbers_pattern(contract_loader):
+    schema = contract_loader("blocklist.schema.json")
     pattern = schema["properties"]["call_numbers"]["items"]["pattern"]
     assert E164.pattern == pattern == r"^\+[1-9][0-9]{6,14}$"
 
@@ -255,8 +253,8 @@ def test_corpus_sms_senders_normalise(corpus):
             assert out is None, case
 
 
-def test_test_blocklist_senders_normalise_to_lowercase_or_e164():
-    blocklist = load_contract("test-blocklist.json")
+def test_test_blocklist_senders_normalise_to_lowercase_or_e164(contract_loader):
+    blocklist = contract_loader("test-blocklist.json")
     for sender in blocklist["sms_senders"] + blocklist["sms_allow_senders"]:
         out = normalize_sender(sender)
         assert out is not None, sender
@@ -268,15 +266,18 @@ def test_test_blocklist_senders_normalise_to_lowercase_or_e164():
 # --- conftest ----------------------------------------------------------------
 
 
-def test_contract_dir_is_resolved_from_the_test_file(tmp_path, monkeypatch):
+def test_contract_dir_is_resolved_from_the_test_file(
+    contract_dir, contract_loader, tmp_path, monkeypatch
+):
     monkeypatch.chdir(tmp_path)
-    assert CONTRACT_DIR.is_absolute()
-    assert (CONTRACT_DIR / "corpus.json").is_file()
-    assert len(load_contract("corpus.json")["normalize"]) == 18
+    assert contract_dir.is_absolute()
+    assert contract_dir.name == "contract"
+    assert (contract_dir / "corpus.json").is_file()
+    assert len(contract_loader("corpus.json")["normalize"]) == 18
 
 
-def test_load_contract_does_not_modify_contract_files():
-    path = CONTRACT_DIR / "corpus.json"
+def test_load_contract_does_not_modify_contract_files(contract_dir, contract_loader):
+    path = contract_dir / "corpus.json"
     before = (path.read_bytes(), path.stat().st_mtime_ns)
-    load_contract("corpus.json")
+    contract_loader("corpus.json")
     assert (path.read_bytes(), path.stat().st_mtime_ns) == before
