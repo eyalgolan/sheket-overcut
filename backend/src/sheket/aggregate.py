@@ -178,3 +178,59 @@ def _generated_at(version: int) -> str:
     return datetime.fromtimestamp(version, timezone.utc).strftime(
         "%Y-%m-%dT%H:%M:%SZ"
     )
+
+
+def build_blocklist(
+    curated: dict,
+    reports: Iterable[object],
+    overrides: Iterable[object],
+    now: int,
+    previous_version: int,
+    min_installs: int,
+    min_networks: int,
+) -> dict:
+    """Build a new blocklist document (spec 6.1) from its inputs.
+
+    ``version`` is ``max(now, previous_version + 1)``, so it only ever
+    increases (spec 6.1). ``call_numbers`` and ``sms_senders`` are the
+    curated entries plus the published senders (spec 6.3 publication rule)
+    plus the ``force_block`` overrides, minus every ``never_block`` sender;
+    ``never_block`` therefore beats ``force_block`` and also removes curated
+    entries (spec 6.3). Lists are sorted so the output is deterministic.
+
+    The inputs are never mutated; every list and dict in the result is new.
+    """
+    version = max(int(now), int(previous_version) + 1)
+    force_call, force_sms, never = _parse_overrides(curated["never_block"], overrides)
+    published_call, published_sms = _published(
+        reports, now, min_installs, min_networks
+    )
+
+    call_numbers = sorted(
+        (set(curated["call_numbers"]) | published_call | force_call) - never
+    )
+    sms_senders = sorted(
+        (set(curated["sms_senders"]) | published_sms | force_sms) - never
+    )
+
+    # The curated-only lists below are taken as they are: never_block is not
+    # applied to them. never_block guards against blocking a sender, and every
+    # curated sms_allow_senders entry is also in never_block, so subtracting it
+    # would empty the allow list and break the seed blocklist.
+    call_prefixes = sorted(curated["call_prefixes"])
+    sms_keywords = [
+        {"text": k["text"], "strength": k["strength"]}
+        for k in sorted(curated["sms_keywords"], key=lambda k: k["text"])
+    ]
+    sms_allow_senders = sorted(curated["sms_allow_senders"])
+
+    return {
+        "schema": SCHEMA_VERSION,
+        "version": version,
+        "generated_at": _generated_at(version),
+        "call_numbers": call_numbers,
+        "call_prefixes": call_prefixes,
+        "sms_senders": sms_senders,
+        "sms_keywords": sms_keywords,
+        "sms_allow_senders": sms_allow_senders,
+    }
