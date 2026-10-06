@@ -1,8 +1,9 @@
 """Edge-case tests for ``sheket.normalize`` beyond the corpus cases.
 
 ``contract/corpus.json`` stays the source of truth; these tests pin the rules
-the design derives from it (design Phase 1.3) and the provisional answer to
-owner Decision 3 (sender IDs with internal whitespace are rejected).
+the design derives from it (design Phase 1.3), including that input outside
+the phone rules and the star-code rule is a sender ID, and the provisional
+answer to owner Decision 3 (sender IDs with internal whitespace are rejected).
 """
 
 import pytest
@@ -227,10 +228,12 @@ def test_sender_ids_with_internal_whitespace_return_none(raw):
         "*١٢٣٤",  # star code with Arabic-Indic digits
     ],
 )
-def test_number_shaped_input_is_never_a_sender_id(raw):
-    # contract/README.md: every spelling of one number is one sender, so a
-    # number that cannot be normalised is rejected, not kept as a sender ID.
-    assert normalize_sender(raw) is None
+def test_number_shaped_input_outside_the_phone_rules_is_a_sender_id(raw):
+    # Owner, PR #10 (Item 2): follow design Phase 1.3. Input with a character
+    # outside the phone-like set, and not a star code, is a sender ID.
+    once = normalize_sender(raw)
+    assert once == raw.casefold()
+    assert normalize_sender(once) == once
 
 
 @pytest.mark.parametrize(
