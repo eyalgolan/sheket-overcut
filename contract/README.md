@@ -2,24 +2,31 @@
 
 The only thing the backend, the Android app and the iOS app share. The binding
 definition is spec section 6
-(`docs/superpowers/specs/2026-10-04-election-spam-blocker-design.md`); these
+(`docs/spec.md`); these
 files make it executable. Every track reads them from here. Nobody keeps a copy.
 
 | File | What it is | Who consumes it |
 |---|---|---|
 | `blocklist.schema.json` | JSON Schema (draft 2020-12) for `GET /v1/blocklist.json`, spec 6.1. | Aggregate Lambda (validates before writing), both apps (same rules in their parsers), tests. |
-| `curated.json` | Hand-curated rules: SMS keywords, SMS senders, SMS allowlist, seed call numbers and prefixes, and `never_block`. | Aggregate Lambda (packaged beside it), `backend/scripts/build_seed.py`. |
+| `curated.json` | Hand-curated rules: SMS keywords, SMS senders, SMS allowlist, seed call numbers and prefixes, and `never_block`. | Aggregate Lambda (packaged beside it), the seed build that writes `seed-blocklist.json`. |
 | `test-blocklist.json` | A valid blocklist with fictitious data, for tests only. Never shipped. | Backend, Android and iOS unit tests. |
 | `corpus.json` | Shared test cases: sender normalisation, SMS classification, call blocking. | Backend, Android and iOS unit tests, so the three implementations cannot drift apart. |
-| `seed-blocklist.json` | Not written here. Generated from `curated.json` by Task B1 and bundled into both apps. | Both apps (first launch, offline), tests. |
+| `seed-blocklist.json` | The blocklist built from `curated.json` alone, committed here and bundled into both apps. It is only ever regenerated from `curated.json`, never edited by hand. | Both apps (first launch, offline), tests. |
 
-## The rule for changing `curated.json`
+## The rule for changing these files
 
-`curated.json` changes only in the same commit as the `corpus.json` cases that
-prove the change: a new keyword comes with at least one campaign message it
-catches and one legitimate message it must not catch. The corpus runs against
-the seed list in every track's tests, so a keyword that catches a legitimate
-message fails the build.
+Any change to `curated.json`, `corpus.json`, `test-blocklist.json` or
+`blocklist.schema.json` goes in its own pull request, titled `contract: ...`,
+that touches only `contract/` and is approved by the owner. A change to
+`curated.json` comes in that pull request with the `corpus.json` cases that
+prove it (a new keyword comes with at least one campaign message it catches
+and one legitimate message it must not catch) and with `seed-blocklist.json`
+regenerated from it. The corpus runs against the seed list in every track's
+tests, so a keyword that catches a legitimate message fails the build.
+
+A code pull request may change `seed-blocklist.json` only as a pure
+regeneration from `curated.json`, and only with a test that proves the
+committed file matches a fresh build.
 
 ## Schema notes
 
@@ -38,7 +45,7 @@ message fails the build.
   `ExampleParty`); clients normalise both sides before comparing.
 - No additional properties at the top level or inside a keyword object.
 
-Validation command (shown with its output in the T0 report):
+Validation command:
 
 ```
 python -m venv .venv && .venv/bin/pip install jsonschema rfc3339-validator
@@ -110,7 +117,7 @@ One word in a message must never count as two distinct weak keywords:
   because `להצביע על` also means "to point out". `выборы` is kept rather than
   a stem such as `выбор`, which is the ordinary word for "choice".
 - No weak keyword sits inside a common word or place name with another
-  meaning. The T0 checker tests this against `בנטפליקס`, `בנטילת`, `בנטו`,
+  meaning. The list was checked against `בנטפליקס`, `בנטילת`, `בנטו`,
   `בנטייה`, `בנטל`, `בנטרול`, `הנדל"ן`, `הנדל״ן`, `רמת הגולן`, `גולני`,
   `בגולן`, `אבן גבירול`, `אבן-גבירול`, `נתניה`, `קלפים`. The one exception
   is `קלפי` inside `קלפים` (playing cards): spec 6.1 names `קלפי` as a weak
@@ -204,13 +211,16 @@ Fictitious data only, never shipped.
 ## `corpus.json`
 
 - `normalize`: `{"in", "out"}`. `out` is the E.164 number, the trimmed and
-  case-folded sender ID (1 to 20 characters), or `null`. Covers the spellings
-  in Review Focus 1, sender IDs, short service numbers, and input that is not
-  a sender at all.
+  case-folded sender ID (1 to 20 characters), or `null`. Covers the many
+  spellings of one number (`055-500-1234`, `0555001234`, `972555001234`,
+  `+972 55 500 1234`, `+972-55-500-1234`, `(055) 500-1234`, with surrounding
+  spaces), which must count as one sender everywhere: reports, blocklist and
+  both apps. Also covers sender IDs, short service numbers, and input that is
+  not a sender at all.
 - `sms`: `{"blocklist", "sender", "text", "expect", "why"}`. `blocklist` is
   `seed` (the list built from `curated.json`, i.e. `seed-blocklist.json`) or
   `test` (`test-blocklist.json`). The sender is classified after
-  normalisation, so the cases also exercise Review Focus 1.
+  normalisation, so the cases also exercise those spellings.
 - `calls`: `{"number", "expect", "why"}`, all run against
   `test-blocklist.json` after normalising `number`. Every prefix hit is on the
   4-free-digit prefix, so the expected result is the same on Android (prefix
@@ -218,5 +228,5 @@ Fictitious data only, never shipped.
   have no case: neither OS asks the app about them (spec section 4).
 
 No real phone number of a private person appears in these files. Numbers are
-in the plan's `+97255500xxxx` test range, next to it in the two test prefixes,
+in the `+97255500xxxx` test range, next to it in the two test prefixes,
 or the North American fictional range `555-01xx`.

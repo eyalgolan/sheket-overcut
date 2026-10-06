@@ -26,8 +26,7 @@ Success for this election:
 ## 2. What the owner said, and what is assumed
 
 Said: Android and iOS apps plus an AWS backend; target this election with cut
-scope; backend goes in the existing AWS account as a new stack; standing rules
-installed as hooks in this project only.
+scope; backend goes in the existing AWS account as a new stack.
 
 Assumed (correct these if wrong):
 
@@ -130,15 +129,17 @@ Backend components (new Terraform root module `infra/` in this repo,
 - **Aggregate Lambda**, run by an EventBridge schedule every 15 minutes. Reads
   reports and overrides, applies the publication rule, merges the curated
   rules file, writes `v1/blocklist.json`. Reserved concurrency 1.
-- **Curated rules file** `rules/curated.json` in the repo: SMS keywords, SMS
-  sender IDs, the allowlist, seed numbers. Deployed with the aggregate Lambda.
-  Changing it is a commit and an apply.
+- **Curated rules file** `contract/curated.json` in the repo: SMS keywords, SMS
+  sender IDs, the allowlist, seed numbers. Deployed with the aggregate Lambda:
+  the Terraform packaging copies `contract/curated.json` and
+  `contract/blocklist.schema.json` into the Lambda package. Changing it is a
+  commit and an apply.
 - **Alarms**: report Lambda errors and throttles, aggregate Lambda errors,
   blocklist older than 45 minutes.
 
-Backend requirements: Terraform with exactly pinned providers; Lambdas in
-Python 3.13 on arm64; DynamoDB on-demand; IAM roles with inline policies only;
-no secrets in source.
+Backend requirements: Terraform with providers pinned exactly and the lock
+file committed; local, gitignored state; Lambdas in Python 3.13 on arm64;
+DynamoDB on-demand; IAM roles with inline policies only; no secrets in source.
 
 Apps:
 

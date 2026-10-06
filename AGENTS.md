@@ -15,5 +15,6 @@ These apply at every single step, not just at the end:
 - No AWS credentials in the repository or in CI.
 - No secrets in source.
 - Endpoints (the blocklist URL and the report URL) are build-time configuration with fake defaults. No real endpoint is committed.
-- Each pull request must keep CI green for its track (`backend`, `android`, `ios`).
-- The files in `contract/` are the acceptance tests. A code pull request may not edit them.
+- Each pull request must keep CI green for its track (`backend`, `android`, `ios`). The first pull request of a track must turn that track's workflow green. A pull request that touches `contract/` triggers all three workflows.
+- The files in `contract/` are the acceptance tests. A code pull request may not edit them, with one exception: it may regenerate `contract/seed-blocklist.json`, only as a pure regeneration from `contract/curated.json` and only with a test that proves the committed file matches a fresh build.
+- Any change to `contract/curated.json`, `contract/corpus.json`, `contract/test-blocklist.json` or `contract/blocklist.schema.json` goes in a separate pull request titled `contract: ...` that touches only `contract/` and is approved by the owner.
