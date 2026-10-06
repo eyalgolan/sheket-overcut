@@ -47,7 +47,9 @@ def _parse_overrides(
     is the rest of the key, so a ``#`` inside it is preserved, and it is
     normalised with ``normalize_sender``. A ``force_block#call`` sender must
     also be E.164. A malformed item is logged and skipped, never raised, so
-    one bad override cannot stop the blocklist from being built.
+    one bad override cannot stop the blocklist from being built. The skip log
+    carries only the reason, the key prefix and a known kind, never the key
+    or the sender.
 
     ``curated_never`` holds the ``never_block`` values from
     ``contract/curated.json``, which are already normalised; they are merged
@@ -60,25 +62,34 @@ def _parse_overrides(
     for item in overrides:
         sk = item.get("sk") if isinstance(item, dict) else None
         if not isinstance(sk, str):
-            logger.error("override skipped: missing or non-str sk: %r", sk)
+            logger.error(
+                "override skipped: missing or non-str sk (type=%s)", type(sk).__name__
+            )
             continue
 
         if sk.startswith("force_block#"):
             parts = sk.split("#", 2)
             if len(parts) != 3 or not parts[2]:
-                logger.error("override skipped: malformed force_block: %r", sk)
+                logger.error("override skipped: malformed key (prefix=force_block)")
                 continue
             _, kind, raw = parts
             if kind not in KINDS:
-                logger.error("override skipped: unknown kind: %r", sk)
+                logger.error("override skipped: unknown kind (prefix=force_block)")
                 continue
             sender = normalize_sender(raw)
             if sender is None:
-                logger.error("override skipped: sender does not normalise: %r", sk)
+                logger.error(
+                    "override skipped: sender does not normalise "
+                    "(prefix=force_block, kind=%s)",
+                    kind,
+                )
                 continue
             if kind == "call":
                 if not is_e164(sender):
-                    logger.error("override skipped: call sender not E.164: %r", sk)
+                    logger.error(
+                        "override skipped: sender not E.164 "
+                        "(prefix=force_block, kind=call)"
+                    )
                     continue
                 force_call.add(sender)
             else:
@@ -86,15 +97,17 @@ def _parse_overrides(
         elif sk.startswith("never_block#"):
             parts = sk.split("#", 1)
             if len(parts) != 2 or not parts[1]:
-                logger.error("override skipped: malformed never_block: %r", sk)
+                logger.error("override skipped: malformed key (prefix=never_block)")
                 continue
             sender = normalize_sender(parts[1])
             if sender is None:
-                logger.error("override skipped: sender does not normalise: %r", sk)
+                logger.error(
+                    "override skipped: sender does not normalise (prefix=never_block)"
+                )
                 continue
             never_overrides.add(sender)
         else:
-            logger.error("override skipped: unknown prefix: %r", sk)
+            logger.error("override skipped: unknown key prefix")
 
     never = set(curated_never) | never_overrides
     return force_call, force_sms, never

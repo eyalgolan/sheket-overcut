@@ -468,6 +468,20 @@ def test_short_numbers_in_never_block_never_drop_a_prefix(curated):
     assert build(custom, overrides=overrides)["call_prefixes"] == ["+1001", "+2700"]
 
 
+def _override_user_text(sk):
+    """Return the operator-entered parts of ``sk`` that must never be logged."""
+    if sk.startswith("force_block#"):
+        parts = sk.split("#", 2)
+        kind = parts[1]
+        sender = parts[2] if len(parts) == 3 else ""
+        return [sender] if kind in ("call", "sms") else [kind, sender]
+    if sk.startswith("never_block#"):
+        return [sk.split("#", 1)[1]]
+    if sk in ("force_block", "never_block"):
+        return []
+    return [sk]  # unknown prefix: the whole key is operator text
+
+
 @pytest.mark.parametrize(
     "bad",
     [
@@ -482,7 +496,7 @@ def test_short_numbers_in_never_block_never_drop_a_prefix(curated):
         {"sk": "force_block#"},
         {"sk": "force_block#call"},
         {"sk": "force_block#call#"},
-        {"sk": "force_block#fax#x"},
+        {"sk": "force_block#fax#ExampleParty"},
         {"sk": "force_block#sms#   "},
         {"sk": "force_block#sms#" + "x" * 21},  # sender ID too long
         {"sk": "force_block#call#100"},  # short number, not E.164
@@ -496,14 +510,41 @@ def test_short_numbers_in_never_block_never_drop_a_prefix(curated):
     ids=repr,
 )
 def test_invalid_override_is_skipped_with_error_log(curated, schema, caplog, bad):
-    caplog.set_level(logging.ERROR, logger="sheket.aggregate")
+    caplog.set_level(logging.DEBUG, logger="sheket.aggregate")
     good = {"sk": f"force_block#call#{CALL_2}"}
     doc = build(curated, overrides=[bad, good])
     assert doc["call_numbers"] == [CALL_2]
     assert doc["sms_senders"] == []
     validate_blocklist(doc, schema)
-    errors = [r for r in caplog.records if r.levelno == logging.ERROR]
-    assert len(errors) == 1
+    assert len(caplog.records) == 1
+    assert caplog.records[0].levelno == logging.ERROR
+    message = caplog.records[0].getMessage()
+    sk = bad.get("sk") if isinstance(bad, dict) else None
+    if isinstance(sk, str) and sk:
+        for text in _override_user_text(sk):
+            if text.strip():
+                assert text not in message
+
+
+@pytest.mark.parametrize(
+    "sk",
+    [
+        "force_block#call#972-55-500-999x",  # normalises, not E.164
+        "force_block#call#0097255500999",  # does not normalise
+        "force_block#sms#" + "+97255500999" * 3,  # does not normalise
+        "force_block#+97255500999#x",  # unknown kind holding a number
+        "force_block#+97255500999",  # malformed, number in the kind slot
+        "never_block#+97255500999 x",  # does not normalise
+        "+97255500999",  # unknown prefix
+    ],
+)
+def test_override_skip_log_never_carries_the_number(curated, caplog, sk):
+    caplog.set_level(logging.DEBUG, logger="sheket.aggregate")
+    build(curated, overrides=[{"sk": sk}])
+    assert len(caplog.records) == 1
+    message = caplog.records[0].getMessage()
+    assert "97255500999" not in message
+    assert sk not in message
 
 
 def test_invalid_never_block_override_does_not_remove_anything(curated):
