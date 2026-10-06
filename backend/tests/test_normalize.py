@@ -27,6 +27,8 @@ def test_curated_senders_are_already_normalised(curated):
         assert normalize_sender(sender) == sender, sender
 
 
-def test_curated_call_numbers_are_e164(curated):
+def test_curated_call_numbers_are_normalised_e164(curated):
+    # curated.json "call_numbers" is empty today, so this checks nothing yet.
+    # It guards entries the owner adds later in a contract: PR.
     for number in curated["call_numbers"]:
-        assert is_e164(number), number
+        assert normalize_sender(number) == number and is_e164(number), number
