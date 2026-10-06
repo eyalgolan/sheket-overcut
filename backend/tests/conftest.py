@@ -24,3 +24,8 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
 @pytest.fixture
 def normalize_cases() -> list:
     return load_contract("corpus.json")["normalize"]
+
+
+@pytest.fixture
+def curated() -> dict:
+    return load_contract("curated.json")
