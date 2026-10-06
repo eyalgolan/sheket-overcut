@@ -234,3 +234,30 @@ def build_blocklist(
         "sms_keywords": sms_keywords,
         "sms_allow_senders": sms_allow_senders,
     }
+
+
+def validate_blocklist(doc: dict, schema: dict) -> None:
+    """Validate ``doc`` against the blocklist JSON Schema ``schema``.
+
+    Raises ``jsonschema.SchemaError`` if ``schema`` is not a valid Draft 2020-12
+    schema and ``jsonschema.ValidationError`` if ``doc`` does not conform.
+
+    The schema is a parameter rather than loaded at import because the bundled
+    ``sheket/contract/`` copy exists only in the Lambda package (design Phase
+    3.3). The #6 handler loads it and calls build -> validate -> serialize.
+
+    Format checking is mandatory (``contract/README.md``, Schema notes):
+    without a ``FormatChecker`` the ``date-time`` format of ``generated_at``
+    would not be checked at all.
+    """
+    Draft202012Validator.check_schema(schema)
+    Draft202012Validator(schema, format_checker=FormatChecker()).validate(doc)
+
+
+def serialize_blocklist(doc: dict) -> str:
+    """Return ``doc`` as UTF-8-ready JSON text with a trailing newline.
+
+    Keys are not sorted: the key order comes from ``build_blocklist`` and must
+    match ``contract/seed-blocklist.json`` byte for byte.
+    """
+    return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
