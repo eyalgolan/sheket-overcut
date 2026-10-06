@@ -132,6 +132,33 @@ def test_report_exactly_seven_days_old_counts(curated):
     assert build(curated, reports)["call_numbers"] == [CALL]
 
 
+def test_report_exactly_at_now_counts(curated):
+    reports = three_on_two()
+    for r in reports:
+        r["received_at"] = ts(0)
+    assert build(curated, reports)["call_numbers"] == [CALL]
+
+
+def test_report_in_the_future_is_skipped_with_error_log(curated, caplog):
+    caplog.set_level(logging.DEBUG, logger="sheket.aggregate")
+    reports = three_on_two()
+    reports[2]["received_at"] = ts(-1)  # one second after now
+    assert build(curated, reports)["call_numbers"] == []
+    assert len(caplog.records) == 1
+    assert caplog.records[0].levelno == logging.ERROR
+    text = caplog.records[0].getMessage()
+    for value in (CALL, "i3", "n2"):
+        assert value not in text
+
+
+def test_future_bound_uses_fractional_now(curated):
+    # now = NOW + 0.9: a report at NOW counts, one at NOW + 1 is in the future.
+    reports = three_on_two()
+    assert build(curated, reports, now=NOW + 0.9)["call_numbers"] == [CALL]
+    reports[2]["received_at"] = ts(-1)
+    assert build(curated, reports, now=NOW + 0.9)["call_numbers"] == []
+
+
 def test_window_is_seven_days():
     assert WINDOW == timedelta(days=7)
 

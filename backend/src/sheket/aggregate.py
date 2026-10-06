@@ -108,8 +108,10 @@ def _published(
 ) -> tuple[set[str], set[str]]:
     """Apply the publication rule (spec 6.3); return ``(call_set, sms_set)``.
 
-    A report counts only if its ``received_at`` is within ``WINDOW`` of
-    ``now`` (Unix seconds); a naive timestamp is treated as UTC. The sender
+    A report counts only if its ``received_at`` lies in ``[now - WINDOW,
+    now]`` (``now`` in Unix seconds, both ends inclusive); a naive timestamp
+    is treated as UTC. A report dated after ``now`` is logged and skipped, so
+    it cannot keep counting until the clock catches up with it. The sender
     is normalised with ``normalize_sender`` first, so spelling variants
     (``Clalit``, ``CLALIT``) form one group and match ``never_block``; a
     ``call`` sender must also be E.164 after normalising. Reports are
@@ -121,7 +123,8 @@ def _published(
     A malformed report is logged and skipped, never raised. Logs carry only
     the reason and the kind, never the sender, install ID or network hash.
     """
-    cutoff = datetime.fromtimestamp(now, timezone.utc) - WINDOW
+    now_dt = datetime.fromtimestamp(now, timezone.utc)
+    cutoff = now_dt - WINDOW
     installs: dict[tuple[str, str], set[str]] = {}
     nets: dict[tuple[str, str], set[str]] = {}
 
@@ -160,6 +163,9 @@ def _published(
             continue
         if kind == "call" and not is_e164(sender):
             logger.error("report skipped: sender not E.164 (kind=%r)", kind)
+            continue
+        if received > now_dt:
+            logger.error("report skipped: received_at in the future (kind=%r)", kind)
             continue
         if received < cutoff:
             continue
