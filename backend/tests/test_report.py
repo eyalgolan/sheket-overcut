@@ -208,8 +208,10 @@ def test_other_method_is_405_with_allow_header(no_ddb, method):
         pytest.param(make_event(raw_body='{"a": Infinity}'), id="infinity"),
         pytest.param(make_event(raw_body='{"a": -Infinity}'), id="neg-infinity"),
         pytest.param(make_event(raw_body="[" * 100000), id="deep-nesting"),
-        pytest.param(make_event(raw_body="!!!", b64=False) | {"isBase64Encoded": True},
-                     id="invalid-base64"),
+        pytest.param(
+            make_event(raw_body="!!!", b64=False) | {"isBase64Encoded": True},
+            id="invalid-base64",
+        ),
         pytest.param(make_event(raw_body=b"\xff\xfe{}", b64=True), id="invalid-utf8"),
         pytest.param(
             make_event(raw_body=json.dumps(payload()).encode("utf-16"), b64=True),
@@ -343,7 +345,9 @@ def test_bad_app_version_is_400(no_ddb, value):
     assert post(payload(app_version=value))[:2] == (400, {"error": "app_version"})
 
 
-@pytest.mark.parametrize("value", ["1", "1.0.0", "2.3.4+build.5", "1.0.0-rc.1", "v" * 32])
+@pytest.mark.parametrize(
+    "value", ["1", "1.0.0", "2.3.4+build.5", "1.0.0-rc.1", "v" * 32]
+)
 def test_good_app_version_is_accepted(ddb_table, value):
     assert post(payload(app_version=value))[0] == 202
 
@@ -592,9 +596,7 @@ def test_ipv6_spellings_share_one_ip_key():
 
 def test_hashes_are_keyed_by_the_salt():
     net, key = report._network_hashes("203.0.113.9", "salt-a")
-    assert net == hmac.new(
-        b"salt-a", b"v4:203.0.113.0/24", hashlib.sha256
-    ).hexdigest()
+    assert net == hmac.new(b"salt-a", b"v4:203.0.113.0/24", hashlib.sha256).hexdigest()
     assert key == hmac.new(b"salt-a", b"ip:203.0.113.9", hashlib.sha256).hexdigest()
     assert report._network_hashes("203.0.113.9", "salt-b") != (net, key)
 
@@ -724,9 +726,7 @@ def test_ip_limit_resets_on_the_next_hour(ddb_table, clock):
 
 def test_ip_limit_applies_to_ipv6_spellings(ddb_table, clock):
     _fill_ip_quota("2001:db8::1")
-    assert (
-        post(payload(install_id=install_id(3)), ip="2001:0db8:0:0:0:0:0:1")[0] == 429
-    )
+    assert post(payload(install_id=install_id(3)), ip="2001:0db8:0:0:0:0:0:1")[0] == 429
 
 
 # --- AC-9: a 429 writes nothing -----------------------------------------------
