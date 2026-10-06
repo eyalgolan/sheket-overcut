@@ -197,6 +197,32 @@ def test_groups_are_counted_per_sender(curated):
     assert build(curated, reports)["call_numbers"] == []
 
 
+def test_networks_are_counted_per_sender(curated):
+    # CALL has three installs, all on one network. The second network comes
+    # from a report about a different sender, so it must not count for CALL.
+    reports = [
+        report(CALL, "i1", "n1"),
+        report(CALL, "i2", "n1"),
+        report(CALL, "i3", "n1"),
+        report(CALL_2, "i4", "n2"),
+    ]
+    assert build(curated, reports)["call_numbers"] == []
+
+
+def test_networks_are_counted_per_kind(curated):
+    # Three call installs on one network. The second network comes from an
+    # sms report about the same number, so it must not count for the call group.
+    reports = [
+        report(CALL, "i1", "n1", "call"),
+        report(CALL, "i2", "n1", "call"),
+        report(CALL, "i3", "n1", "call"),
+        report(CALL, "i4", "n2", "sms"),
+    ]
+    doc = build(curated, reports)
+    assert doc["call_numbers"] == []
+    assert doc["sms_senders"] == []
+
+
 def test_kinds_are_published_separately(curated):
     # Provisional answer to owner Decision 1: sms reports publish only to
     # sms_senders and call reports only to call_numbers, even for one number.
