@@ -23,7 +23,14 @@ def test_phone_outputs_are_e164(corpus):
 
 
 def test_curated_senders_are_already_normalised(curated):
-    senders = curated["sms_allow_senders"] + curated["never_block"]
+    senders = (
+        curated["sms_senders"] + curated["sms_allow_senders"] + curated["never_block"]
+    )
     assert senders
     for sender in senders:
         assert normalize_sender(sender) == sender, sender
+
+
+def test_curated_call_numbers_are_e164(curated):
+    for number in curated["call_numbers"]:
+        assert is_e164(number), number

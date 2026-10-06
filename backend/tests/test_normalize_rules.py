@@ -272,34 +272,61 @@ def test_corpus_normalize_outputs_are_fixed_points(corpus):
             assert normalize_sender(out) == out, case
 
 
-def test_corpus_call_numbers_normalise_to_e164_or_non_number(corpus):
-    """Calls with digits normalise to E.164; the rest never look like one."""
-    assert corpus["calls"]
-    for case in corpus["calls"]:
-        out = normalize_sender(case["number"])
-        if any(ch.isdigit() for ch in case["number"]):
-            assert is_e164(out), case
-        else:
-            assert out is None or not is_e164(out), case
+# Expected results for the corpus inputs that are not already E.164. Each
+# table's keys must equal those inputs exactly, so a new corpus case fails
+# until its expected result is written down here.
+_CALL_NUMBERS_EXPECTED = {
+    "": None,
+    "055-500-1234": "+972555001234",
+    "0555010000": "+972555010000",
+    "972555001234": "+972555001234",
+    "+972 55 500 1234": "+972555001234",
+    "Unknown": "unknown",
+}
+
+_SMS_SENDERS_EXPECTED = {
+    "": None,
+    "  examplelist ": "examplelist",
+    "+972 55 500 4321": "+972555004321",
+    "055-500-4321": "+972555004321",
+    "BECHIROT": "bechirot",
+    "Bechirot": "bechirot",
+    "BankHapoalim": "bankhapoalim",
+    "Clalit": "clalit",
+    "EXAMPLEPARTY": "exampleparty",
+    "ExampleParty": "exampleparty",
+    "ExampleAllow": "exampleallow",
+    "Google": "google",
+    "Leumi": "leumi",
+    "Maccabi": "maccabi",
+    "WhatsApp": "whatsapp",
+}
 
 
-def test_corpus_sms_senders_normalise(corpus):
-    assert corpus["sms"]
-    for case in corpus["sms"]:
-        sender = case["sender"]
-        out = normalize_sender(sender)
-        if sender.strip():
-            assert out is not None, case
-        else:
-            assert out is None, case
+def _assert_exact(inputs, expected):
+    assert inputs
+    assert {s for s in inputs if not is_e164(s)} == set(expected)
+    for s in inputs:
+        want = s if is_e164(s) else expected[s]
+        assert normalize_sender(s) == want, s
 
 
-def test_test_blocklist_senders_normalise_to_lowercase_or_e164(contract_loader):
+def test_corpus_call_numbers_normalise_exactly(corpus):
+    _assert_exact([c["number"] for c in corpus["calls"]], _CALL_NUMBERS_EXPECTED)
+
+
+def test_corpus_sms_senders_normalise_exactly(corpus):
+    _assert_exact([c["sender"] for c in corpus["sms"]], _SMS_SENDERS_EXPECTED)
+
+
+def test_test_blocklist_senders_normalise_exactly(contract_loader):
     blocklist = contract_loader("test-blocklist.json")
-    for sender in blocklist["sms_senders"] + blocklist["sms_allow_senders"]:
-        out = normalize_sender(sender)
-        assert out is not None, sender
-        assert is_e164(out) or out == sender.casefold(), (sender, out)
+    senders = blocklist["sms_senders"] + blocklist["sms_allow_senders"]
+    assert senders
+    for sender in senders:
+        expected = sender if is_e164(sender) else sender.casefold()
+        assert normalize_sender(sender) == expected, sender
+    assert blocklist["call_numbers"]
     for number in blocklist["call_numbers"]:
         assert normalize_sender(number) == number
 
