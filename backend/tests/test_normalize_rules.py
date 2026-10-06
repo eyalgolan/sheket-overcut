@@ -127,6 +127,11 @@ def test_phone_rules(raw, expected):
         "0055001234",  # 00 is the international prefix, not a national number
         "001234567",
         "9720555001234",  # 972 + 10 digits
+        # Israeli 1-700/1-800 numbers have no trunk 0: design rule 5 gives
+        # None. Changing that needs a corpus case in a contract: PR.
+        "1800500500",
+        "1-800-500-500",
+        "1700500500",
     ],
 )
 def test_unplaceable_numbers_return_none(raw):
