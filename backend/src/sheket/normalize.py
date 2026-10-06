@@ -24,12 +24,12 @@ _SHORT_NUMBER = re.compile(r"[1-9][0-9]{2,4}")
 _MAX_SENDER_ID_LEN = 20
 
 
-def is_e164(s):
+def is_e164(s: object) -> bool:
     """Return True only for a str that fully matches ``E164``."""
     return isinstance(s, str) and E164.fullmatch(s) is not None
 
 
-def normalize_sender(raw):
+def normalize_sender(raw: object) -> str | None:
     """Normalise a raw sender; return the normalised form or None.
 
     See the ``normalize`` cases in ``contract/corpus.json``, the source of
