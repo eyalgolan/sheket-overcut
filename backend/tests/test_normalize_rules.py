@@ -300,8 +300,9 @@ def test_corpus_normalize_outputs_are_fixed_points(corpus):
 
 def _assert_normalises_sanely(inputs):
     # Checks that hold for any corpus content, so a later contract: PR that
-    # adds cases cannot turn backend CI red. The exact expected values are
-    # pinned by the corpus "normalize" cases in test_normalize.py.
+    # adds cases cannot turn backend CI red. The corpus has no expected
+    # normalised value for calls or sms senders, so these checks are loose;
+    # test_corpus_blocked_calls_normalise_to_e164 adds a stricter one.
     assert inputs
     for s in inputs:
         out = normalize_sender(s)
@@ -314,6 +315,15 @@ def _assert_normalises_sanely(inputs):
 
 def test_corpus_call_numbers_normalise_sanely(corpus):
     _assert_normalises_sanely([c["number"] for c in corpus["calls"]])
+
+
+def test_corpus_blocked_calls_normalise_to_e164(corpus):
+    # A call can only be blocked by call_numbers or call_prefixes, and the
+    # schema makes both E.164, so every "block" number must normalise to E.164.
+    blocked = [c["number"] for c in corpus["calls"] if c["expect"] == "block"]
+    assert blocked
+    for number in blocked:
+        assert is_e164(normalize_sender(number)), number
 
 
 def test_corpus_sms_senders_normalise_sanely(corpus):
