@@ -204,6 +204,40 @@ def test_curated_never_block_blocks_publication(curated):
     assert protected not in doc["sms_senders"]
 
 
+def test_report_sender_variants_are_normalised_into_one_group(curated):
+    # Three spellings of one sender ID: one normalised group, one entry.
+    reports = [
+        report("ExampleX", "i1", "n1", "sms"),
+        report("EXAMPLEX", "i2", "n1", "sms"),
+        report(" examplex ", "i3", "n2", "sms"),
+    ]
+    assert build(curated, reports)["sms_senders"] == ["examplex"]
+
+
+def test_report_call_sender_is_normalised(curated):
+    reports = [
+        report("055-500-1234", "i1", "n1"),
+        report("0555001234", "i2", "n1"),
+        report(CALL, "i3", "n2"),
+    ]
+    assert build(curated, reports)["call_numbers"] == [CALL]
+
+
+def test_curated_never_block_removes_report_spelling_variants(curated):
+    assert "clalit" in curated["never_block"]
+    # "Clalit" alone crosses the threshold; before normalising it would have
+    # been published, because never_block holds only the case-folded form.
+    reports = [
+        *three_on_two("Clalit", kind="sms"),
+        report("CLALIT", "i4", "n3", "sms"),
+        report(" clalit", "i5", "n4", "sms"),
+    ]
+    doc = build(curated, reports)
+    assert "clalit" not in doc["sms_senders"]
+    assert "Clalit" not in doc["sms_senders"]
+    assert doc["sms_senders"] == sorted(curated["sms_senders"])
+
+
 # --- Malformed reports are skipped, not fatal ----------------------------------
 
 
@@ -223,6 +257,9 @@ def test_curated_never_block_blocks_publication(curated):
         {**report(), "received_at": 1791201600},
         {**report(), "sender": "100"},  # call report, not E.164
         {**report(), "sender": "exampleparty"},  # call report, not E.164
+        {**report(), "sender": "   "},  # does not normalise
+        {**report(kind="sms"), "sender": "a" * 21},  # sender ID too long
+        {**report(kind="sms"), "sender": "two words"},  # space in sender ID
     ],
     ids=repr,
 )
@@ -249,12 +286,19 @@ def test_report_logs_never_carry_sender_install_or_network(curated, caplog):
         {**report("Secret-Id", "install-secret", "net-secret"), "kind": "call"},
         {**report(secret, "install-secret", "net-secret"), "kind": "fax"},
         {**report(secret, "install-secret", "net-secret"), "install_id": ""},
+        report("Secret Id", "install-secret", "net-secret", "sms"),
     ]
     build(curated, reports)
     assert len(caplog.records) == len(reports)
     for rec in caplog.records:
         text = rec.getMessage()
-        for value in (secret, "Secret-Id", "install-secret", "net-secret"):
+        for value in (
+            secret,
+            "Secret-Id",
+            "Secret Id",
+            "install-secret",
+            "net-secret",
+        ):
             assert value not in text
 
 

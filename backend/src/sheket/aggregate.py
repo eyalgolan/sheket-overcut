@@ -109,7 +109,10 @@ def _published(
     """Apply the publication rule (spec 6.3); return ``(call_set, sms_set)``.
 
     A report counts only if its ``received_at`` is within ``WINDOW`` of
-    ``now`` (Unix seconds); a naive timestamp is treated as UTC. Reports are
+    ``now`` (Unix seconds); a naive timestamp is treated as UTC. The sender
+    is normalised with ``normalize_sender`` first, so spelling variants
+    (``Clalit``, ``CLALIT``) form one group and match ``never_block``; a
+    ``call`` sender must also be E.164 after normalising. Reports are
     grouped by ``(kind, sender)``, and a group is published when it has at
     least ``min_installs`` distinct ``install_id`` values and at least
     ``min_networks`` distinct ``net_hash`` values, so one install reporting
@@ -151,7 +154,10 @@ def _published(
             continue
         if received.tzinfo is None:
             received = received.replace(tzinfo=timezone.utc)
-        sender = report["sender"]
+        sender = normalize_sender(report["sender"])
+        if sender is None:
+            logger.error("report skipped: sender does not normalise (kind=%r)", kind)
+            continue
         if kind == "call" and not is_e164(sender):
             logger.error("report skipped: sender not E.164 (kind=%r)", kind)
             continue
