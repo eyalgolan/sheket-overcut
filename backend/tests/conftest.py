@@ -37,6 +37,8 @@ def curated():
 def pytest_generate_tests(metafunc):
     if "normalize_case" in metafunc.fixturenames:
         cases = load_contract("corpus.json")["normalize"]
+        # An empty list would silently skip the corpus test instead of failing.
+        assert cases, "contract/corpus.json has no normalize cases"
         metafunc.parametrize(
             "normalize_case", cases, ids=[repr(c["in"]) for c in cases]
         )
