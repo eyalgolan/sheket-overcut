@@ -398,15 +398,48 @@ def test_never_set_is_curated_never_block_united_with_overrides(curated):
     assert never == set(curated["never_block"]) | {"some-bank"}
 
 
-def test_never_block_does_not_touch_curated_only_lists(curated):
+def test_never_block_does_not_touch_allow_list_or_keywords(curated):
     # Every curated allow sender is also in never_block; the allow list must
-    # survive, and so must keywords and prefixes.
+    # survive, and so must the keywords.
     assert set(curated["sms_allow_senders"]) <= set(curated["never_block"])
+    doc = build(curated)
+    assert doc["sms_allow_senders"] == sorted(curated["sms_allow_senders"])
+    assert [k["text"] for k in doc["sms_keywords"]] == sorted(
+        k["text"] for k in curated["sms_keywords"]
+    )
+
+
+def test_never_block_inside_curated_prefix_drops_that_prefix(curated, caplog):
+    caplog.set_level(logging.DEBUG, logger="sheket.aggregate")
+    custom = copy.deepcopy(curated)
+    custom["call_prefixes"] = ["+97255501", "+97255988"]
+    number = "+972555011234"  # inside +97255501
+    doc = build(custom, overrides=[{"sk": f"never_block#{number}"}])
+    assert doc["call_prefixes"] == ["+97255988"]
+    assert len(caplog.records) == 1
+    assert caplog.records[0].levelno == logging.ERROR
+    assert number not in caplog.records[0].getMessage()
+
+
+def test_curated_never_block_number_inside_prefix_drops_it(curated):
     custom = copy.deepcopy(curated)
     custom["call_prefixes"] = ["+97255501"]
-    doc = build(custom, overrides=[{"sk": "never_block#+97255501"}])
-    assert doc["sms_allow_senders"] == sorted(curated["sms_allow_senders"])
+    custom["never_block"] = [*curated["never_block"], "+972555019999"]
+    assert build(custom)["call_prefixes"] == []
+
+
+def test_never_block_outside_prefix_keeps_it(curated):
+    custom = copy.deepcopy(curated)
+    custom["call_prefixes"] = ["+97255501"]
+    doc = build(custom, overrides=[{"sk": f"never_block#{CALL}"}])
     assert doc["call_prefixes"] == ["+97255501"]
+
+
+def test_short_numbers_in_never_block_never_drop_a_prefix(curated):
+    custom = copy.deepcopy(curated)
+    custom["call_prefixes"] = ["+1001", "+2700"]
+    overrides = [{"sk": "never_block#100"}, {"sk": "never_block#*2700"}]
+    assert build(custom, overrides=overrides)["call_prefixes"] == ["+1001", "+2700"]
 
 
 @pytest.mark.parametrize(

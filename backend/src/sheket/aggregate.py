@@ -206,7 +206,9 @@ def build_blocklist(
     curated entries plus the published senders (spec 6.3 publication rule)
     plus the ``force_block`` overrides, minus every ``never_block`` sender;
     ``never_block`` therefore beats ``force_block`` and also removes curated
-    entries (spec 6.3). Lists are sorted so the output is deterministic.
+    entries (spec 6.3). A curated ``call_prefixes`` entry that covers an
+    E.164 ``never_block`` number is dropped, since keeping it would still
+    block that number. Lists are sorted so the output is deterministic.
 
     The inputs are never mutated; every list and dict in the result is new.
     """
@@ -221,11 +223,28 @@ def build_blocklist(
         (set(curated["sms_senders"]) | published_sms | force_sms) - never
     )
 
-    # The curated-only lists below are taken as they are: never_block is not
-    # applied to them. never_block guards against blocking a sender, and every
-    # curated sms_allow_senders entry is also in never_block, so subtracting it
-    # would empty the allow list and break the seed blocklist.
-    call_prefixes = sorted(curated["call_prefixes"])
+    # A curated prefix that covers a never_block number would keep that number
+    # blocked (Android matches by prefix, iOS expands it), so never_block could
+    # not "remove one regardless" (spec 6.3, 7). The schema has no per-prefix
+    # exception, so the covering prefix is dropped and logged for the
+    # operator. Only E.164 entries can sit inside a prefix; short numbers,
+    # star codes and sender IDs never match one.
+    never_numbers = [n for n in never if is_e164(n)]
+    call_prefixes = []
+    for prefix in sorted(set(curated["call_prefixes"])):
+        if any(n.startswith(prefix) for n in never_numbers):
+            logger.error(
+                "curated call prefix dropped: it covers a never_block number: %r",
+                prefix,
+            )
+            continue
+        call_prefixes.append(prefix)
+
+    # The remaining curated-only lists are taken as they are: never_block is
+    # not applied to them. They never block a sender (keywords match text, the
+    # allow list exempts senders), and every curated sms_allow_senders entry is
+    # also in never_block, so subtracting it would empty the allow list and
+    # break the seed blocklist.
     sms_keywords = [
         {"text": k["text"], "strength": k["strength"]}
         for k in sorted(curated["sms_keywords"], key=lambda k: k["text"])
