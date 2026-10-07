@@ -24,6 +24,18 @@
             android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE" />
 
+        <!-- Spec section 4: the call screening service. BIND_SCREENING_SERVICE
+             lets only Telecom bind it. It is asked only about non-contacts,
+             because READ_CONTACTS is never held. -->
+        <service
+            android:name=".screening.SheketScreeningService"
+            android:exported="true"
+            android:permission="android.permission.BIND_SCREENING_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
+
     </application>
 
 </manifest>
