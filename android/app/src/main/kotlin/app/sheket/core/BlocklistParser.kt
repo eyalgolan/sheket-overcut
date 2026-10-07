@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
 import java.nio.charset.CodingErrorAction
 import java.time.OffsetDateTime
 import java.time.format.DateTimeParseException
@@ -24,7 +25,9 @@ sealed interface ParseResult {
 /**
  * Parses and validates a `GET /v1/blocklist.json` body against schema 1
  * (`contract/blocklist.schema.json`, spec 6.1). Anything that fails is rejected
- * whole (spec 7); [parse] never throws.
+ * whole (spec 7); [parse] never throws. Arrays and objects nested more than
+ * [MAX_DEPTH] deep are rejected before parsing, because the recursive JSON
+ * parser would otherwise end in a `StackOverflowError`.
  *
  * Known differences from a Python `jsonschema` check with format checking on,
  * all in the safe direction (rejecting keeps the previous list) and none ever
@@ -63,12 +66,21 @@ object BlocklistParser {
     // RFC 8259 integer syntax, so only a true integer literal is accepted.
     private val JSON_INTEGER = Regex("-?(0|[1-9][0-9]*)")
 
+    /** Deepest array/object nesting accepted. A valid schema 1 list is 3 deep. */
+    const val MAX_DEPTH = 16
+
     /** Decodes [bytes] as strict UTF-8 JSON and validates it against schema 1. */
     fun parse(bytes: ByteArray): ParseResult {
+        val text = try {
+            decodeUtf8(bytes)
+        } catch (e: CharacterCodingException) {
+            return ParseResult.Rejected("not valid UTF-8")
+        }
+        if (exceedsDepth(text, MAX_DEPTH)) return ParseResult.Rejected("nesting deeper than $MAX_DEPTH")
         val root = try {
-            Json.parseToJsonElement(decodeUtf8(bytes))
+            Json.parseToJsonElement(text)
         } catch (e: Exception) {
-            return ParseResult.Rejected("not valid UTF-8 JSON")
+            return ParseResult.Rejected("not valid JSON")
         }
         return validate(root)
     }
@@ -115,6 +127,32 @@ object BlocklistParser {
         .onUnmappableCharacter(CodingErrorAction.REPORT)
         .decode(ByteBuffer.wrap(bytes))
         .toString()
+
+    /**
+     * True if [text] opens more than [max] arrays/objects inside each other.
+     * Brackets inside JSON strings (including after a backslash escape) are not
+     * counted. Up to the first syntax error this count equals the parser's
+     * recursion depth, and the parser stops at that error, so malformed text
+     * cannot get past this check into deep recursion.
+     */
+    private fun exceedsDepth(text: String, max: Int): Boolean {
+        var depth = 0
+        var inString = false
+        var escaped = false
+        for (c in text) {
+            when {
+                escaped -> escaped = false
+                inString -> when (c) {
+                    '\\' -> escaped = true
+                    '"' -> inString = false
+                }
+                c == '"' -> inString = true
+                c == '[' || c == '{' -> if (++depth > max) return true
+                c == ']' || c == '}' -> depth--
+            }
+        }
+        return false
+    }
 
     private fun isDateTime(s: String): Boolean {
         if (!GENERATED_AT.matches(s)) return false

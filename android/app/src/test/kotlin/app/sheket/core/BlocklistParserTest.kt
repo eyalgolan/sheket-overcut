@@ -36,6 +36,10 @@ class BlocklistParserTest {
         return JsonArray(listOf(first) + keywords.drop(1))
     }
 
+    /** [depth] arrays nested inside each other, innermost empty. */
+    private fun nestedArrays(depth: Int): JsonArray =
+        (1 until depth).fold(JsonArray(emptyList())) { inner, _ -> JsonArray(listOf(inner)) }
+
     @Test
     fun contractListsParseAndSeedIsOlderThanTest() {
         val test = parseOk(ContractFiles.bytes("test-blocklist.json"))
@@ -70,6 +74,13 @@ class BlocklistParserTest {
         )
         val list = parseOk(doc.bytes())
         assertEquals(setOf("+972555001234"), list.callNumbers)
+    }
+
+    @Test
+    fun bracketsInsideStringsDoNotCountAsNesting() {
+        // The second sender holds a backslash and a quote, so the depth scan must handle escapes too.
+        val senders = strings("[".repeat(20), "\\\"" + "{".repeat(20))
+        parseOk(withKey("sms_senders", senders).bytes())
     }
 
     @Test
@@ -136,6 +147,10 @@ class BlocklistParserTest {
             add("root is a number" to "1".toByteArray())
             add("non-UTF-8 bytes" to nonUtf8)
             add("malformed JSON" to base.toString().dropLast(1).toByteArray(Charsets.UTF_8))
+            add("nesting too deep, unterminated" to "[".repeat(100_000).toByteArray())
+            add("nesting too deep, balanced" to ("[".repeat(10_000) + "]".repeat(10_000)).toByteArray())
+            val tooDeep = nestedArrays(BlocklistParser.MAX_DEPTH)
+            add("nested arrays inside a valid document" to withKey("sms_senders", tooDeep).bytes())
         }
 
         val failures = cases.mapNotNull { (name, bytes) ->
