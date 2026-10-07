@@ -545,13 +545,15 @@ def _load_reports(table: str, now: int) -> Iterator[dict]:
                     total,
                     elapsed,
                 )
-                logger.info("loaded %d reports from %d day partitions", read, total)
+                logger.info(
+                    "loaded %d reports from %d day partitions", read, partitions
+                )
                 return
             read += 1
             yield item
         day += timedelta(days=1)
 
-    logger.info("loaded %d reports from %d day partitions", read, total)
+    logger.info("loaded %d reports from %d day partitions", read, partitions)
 
 
 def _load_overrides(table: str) -> list[dict]:
