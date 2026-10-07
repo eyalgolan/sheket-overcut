@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">שקט</string>
+    <string name="status_title">מצב</string>
+
+    <string name="role_on">סינון השיחות פועל. שקט היא האפליקציה שלך לזיהוי מתקשר וספאם.</string>
+    <string name="role_off">סינון השיחות כבוי. יש להפעיל את שקט בהגדרות › אפליקציות › אפליקציות ברירת מחדל › אפליקציה לזיהוי מתקשר וספאם.</string>
+    <string name="role_request_button">הפעלת סינון שיחות</string>
+    <string name="role_settings_button">פתיחת הגדרות אפליקציות ברירת מחדל</string>
+    <string name="role_unavailable">סינון שיחות אינו זמין במכשיר הזה.</string>
+
+    <string name="list_generated_at">הרשימה נוצרה: %1$s</string>
+    <string name="list_counts">מספרים: %1$d · קידומות: %2$d</string>
+    <string name="list_source_seed">מקור: הרשימה שמגיעה עם האפליקציה</string>
+    <string name="list_source_downloaded">מקור: הרשימה שהורדה</string>
+    <string name="list_none">לא נטענה רשימה.</string>
+
+    <string name="stale_last_updated">עודכן לאחרונה: %1$s</string>
+    <string name="stale_never_updated">הרשימה עוד לא עודכנה.</string>
+
+    <string name="blocked_last_7_days">שיחות שנחסמו ב-7 הימים האחרונים: %1$d</string>
+
+    <string name="about_button">אודות ופרטיות</string>
+
+    <string name="about_title">אודות שקט</string>
+    <string name="about_what">שקט חוסמת שיחות ספאם של בחירות לפני שהן מצלצלות. כל שיחה נכנסת נבדקת מול רשימת מספרים שנשמרת בטלפון, כך שאין שימוש ברשת בזמן שיחה. הרשימה נבנית מדיווחי משתמשים: מספר נוסף רק אחרי שלפחות 3 התקנות שונות מלפחות 2 רשתות שונות דיווחו עליו. האפליקציה מורידה את הרשימה העדכנית מהאינטרנט.</string>
+    <string name="about_contacts">שיחות מאנשי הקשר שלך לעולם אינן מסוננות. שקט לא מבקשת גישה לאנשי הקשר, ולכן Android פונה אליה רק לגבי מתקשרים שאינם ברשימת אנשי הקשר.</string>
+    <string name="about_report_sends">כשמדווחים על שיחה, שקט שולחת רק: מזהה התקנה אקראי שנוצר בפתיחה הראשונה של האפליקציה (לא מקושר אליך, למספר הטלפון שלך או למזהה הפרסום), הפלטפורמה (Android), סוג הדיווח (שיחה), המספר שדווח וגרסת האפליקציה.</string>
+    <string name="about_report_never_sends">דיווח לעולם אינו כולל את אנשי הקשר שלך, הקלטה של השיחה, תוכן הודעות או את המיקום שלך.</string>
+    <string name="about_retention">דיווחים נמחקים אחרי 30 יום. כתובת ה-IP שלך לא נשמרת; נשמר רק גיבוב מומלח של גוש הרשת שלה, וגם הוא נמחק אחרי 30 יום.</string>
+    <string name="about_version">גרסה: %1$s</string>
+    <string name="about_privacy_placeholder">[טקסט זמני] הודעת הפרטיות תופיע כאן אחרי שהבעלים ועורך דין יספקו את הנוסח.</string>
+</resources>

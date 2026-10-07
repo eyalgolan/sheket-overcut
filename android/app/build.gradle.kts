@@ -44,8 +44,17 @@ android {
         unitTests.all {
             it.systemProperty("sheket.contractDir", contractDir.absolutePath)
             it.systemProperty("sheket.coreSrcDir", file("src/main/kotlin/app/sheket/core").absolutePath)
+            // The UI resource tests read res/ and the manifest as text; declared as
+            // inputs so a resource-only change re-runs them.
+            it.systemProperty("sheket.mainSrcDir", file("src/main").absolutePath)
             it.inputs.dir(contractDir)
                 .withPropertyName("contractDir")
+                .withPathSensitivity(PathSensitivity.RELATIVE)
+            it.inputs.dir(file("src/main/res"))
+                .withPropertyName("mainResDir")
+                .withPathSensitivity(PathSensitivity.RELATIVE)
+            it.inputs.file(file("src/main/AndroidManifest.xml"))
+                .withPropertyName("mainManifest")
                 .withPathSensitivity(PathSensitivity.RELATIVE)
         }
     }
