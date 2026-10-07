@@ -218,12 +218,16 @@ private enum ReportResult {
     case sent
     case rateLimited
     case notSent
+    /// The server rejected the report as malformed (400). Resending the same
+    /// report fails again, so there is no retry hint (spec section 6.2).
+    case rejected
 
     var key: LocalizedStringKey {
         switch self {
         case .sent: return "report.result.sent"
         case .rateLimited: return "report.result.rateLimited"
         case .notSent: return "report.result.notSent"
+        case .rejected: return "report.result.rejected"
         }
     }
 
@@ -233,8 +237,10 @@ private enum ReportResult {
             return .sent
         case .retryable(rateLimited: true):
             return .rateLimited
-        case .retryable(rateLimited: false), .rejected:
+        case .retryable(rateLimited: false):
             return .notSent
+        case .rejected:
+            return .rejected
         }
     }
 }

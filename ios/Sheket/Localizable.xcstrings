@@ -358,6 +358,23 @@
         }
       }
     },
+    "report.result.rejected" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not sent"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא נשלח"
+          }
+        }
+      }
+    },
     "report.result.sent" : {
       "extractionState" : "manual",
       "localizations" : {
