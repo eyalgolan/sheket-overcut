@@ -15,20 +15,25 @@ import app.sheket.R
 import app.sheket.SheketApp
 import app.sheket.report.ReportOutcome
 import app.sheket.screening.ScreenedCall
+import app.sheket.screening.ScreenedCallCodec
 import java.text.DateFormat
 import java.util.Date
 
 /**
  * The report screen (#24, spec section 5): the screened-call log, newest
  * first, with a one-tap Report button on each entry whose number is E.164 and
- * not yet reported (spec 6.2).
+ * not yet reported (spec 6.2). A row shows "Reported" when its number was
+ * reported, including entries logged after the report (#57).
  *
  * The log is read on the app's single-thread executor. Reports are sent
  * through the app-scoped [app.sheket.report.ReportTracker], so the UI never
  * waits on the result (spec 6.2), and a report in flight across a rotation
  * keeps its spinner and its result. A report that is not sent is dropped and
- * the user is told so (spec 7). After every report the log is reread, so all
- * entries with the reported number show as reported.
+ * the user is told so (spec 7). Whether a row is reported is decided by number
+ * ([ScreenedCallCodec.reportedNumbers]), the same rule the client uses to
+ * refuse a number, so every entry with a reported number, including calls
+ * logged after the report, shows as reported and never offers a button that
+ * would be refused. After every report the log is reread.
  */
 class ReportActivity : Activity() {
 
@@ -41,6 +46,9 @@ class ReportActivity : Activity() {
 
     /** Main thread only: the log as last read, newest first. */
     private var entries: List<ScreenedCall> = emptyList()
+
+    /** Main thread only: numbers reported in the log as last read (see [ScreenedCallCodec.reportedNumbers]). */
+    private var reportedNumbers: Set<String> = emptySet()
 
     /** Attached to the tracker while started; holds this instance only then. */
     private val onOutcome: (ReportOutcome) -> Unit = { outcome ->
@@ -87,9 +95,12 @@ class ReportActivity : Activity() {
     private fun reload() {
         app.executor.execute {
             val read = runCatching { app.screenedCallLog.entries() }.getOrDefault(emptyList())
+            val reported = ScreenedCallCodec.reportedNumbers(read)
             app.mainHandler.post {
                 if (isAlive()) {
+                    // Both come from the same read, so they always match.
                     entries = read
+                    reportedNumbers = reported
                     adapter.notifyDataSetChanged()
                     // Set only after the first read, so the empty text does not
                     // flash before the log has loaded.
@@ -111,7 +122,10 @@ class ReportActivity : Activity() {
             ReportOutcome.RateLimited -> R.string.report_result_try_later
             is ReportOutcome.NotSent -> R.string.report_result_not_sent
             // Already reported or not E.164: no request was made, so the
-            // previous message is left as is; the reload shows the state.
+            // previous message is left as is. Rows use the same by-number rule
+            // as the client, so a shown Report button is refused only in a
+            // race (two rows with the same number tapped before the first
+            // report finishes); the reload that follows shows both as Reported.
             ReportOutcome.Refused -> return
         }
         result.setText(message)
@@ -173,7 +187,7 @@ class ReportActivity : Activity() {
                     row.progress.visibility = View.VISIBLE
                     row.state.visibility = View.GONE
                 }
-                entry.reported -> showState(row, R.string.report_state_reported)
+                entry.number in reportedNumbers -> showState(row, R.string.report_state_reported)
                 !entry.reportable -> showState(row, R.string.report_state_not_reportable)
                 else -> {
                     row.report.visibility = View.VISIBLE
