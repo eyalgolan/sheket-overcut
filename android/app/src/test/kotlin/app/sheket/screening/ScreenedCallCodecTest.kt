@@ -204,6 +204,62 @@ class ScreenedCallCodecTest {
         assertEquals(log, ScreenedCallCodec.markReported(log, "+972555000000"))
     }
 
+    // --- Reported by number (#57) ---
+
+    @Test
+    fun reportedNumbersOfAnEmptyLogIsEmpty() {
+        assertEquals(emptySet<String>(), ScreenedCallCodec.reportedNumbers(emptyList()))
+    }
+
+    @Test
+    fun reportedNumbersHoldsEachReportedNumberOnce() {
+        val log = listOf(
+            call(1, number = "+972555001234", reported = true),
+            call(2, number = "+972555009876"),
+            call(3, number = "+972555001234", reported = true),
+            call(4, number = "+972555004321", blocked = false, reported = true),
+        )
+        assertEquals(setOf("+972555001234", "+972555004321"), ScreenedCallCodec.reportedNumbers(log))
+    }
+
+    @Test
+    fun aNumberIsReportedIfAnyOfItsEntriesIsReported() {
+        // A log written before #57 can mix flags for one number.
+        val log = listOf(call(1, number = "+972555001234"), call(2, number = "+972555001234", reported = true))
+        assertEquals(setOf("+972555001234"), ScreenedCallCodec.reportedNumbers(log))
+    }
+
+    @Test
+    fun reportedNumbersSkipsEntriesWithNoNumber() {
+        val log = listOf(call(1, number = null, reported = true), call(2, number = null))
+        assertEquals(emptySet<String>(), ScreenedCallCodec.reportedNumbers(log))
+    }
+
+    @Test
+    fun aCallLoggedAfterTheReportCountsAsReported() {
+        // #57: report a number, then the same number calls again.
+        val reportedNumber = "+972555001234"
+        var log = listOf(call(1, number = reportedNumber), call(2, number = "+972555009876"), call(3, number = null))
+        log = ScreenedCallCodec.markReported(log, reportedNumber)
+        // As ScreenedCallLog.append writes it: a new, unreported entry.
+        log = ScreenedCallCodec.prepend(log, call(4, number = reportedNumber, reported = false))
+
+        val newest = log.first()
+        assertEquals("id-4", newest.id)
+        assertFalse("the stored flag alone does not cover later entries", newest.reported)
+
+        val reported = ScreenedCallCodec.reportedNumbers(log)
+        assertEquals(setOf(reportedNumber), reported)
+        // Every entry with the reported number shows Reported, the later one included.
+        assertEquals(
+            listOf(true, true, false, false),
+            listOf("id-4", "id-1", "id-2", "id-3").map { id -> log.single { it.id == id }.number in reported },
+        )
+        // The rule survives a write and a reread of the log.
+        val reread = ScreenedCallCodec.decode(ScreenedCallCodec.encode(log))
+        assertEquals(reported, ScreenedCallCodec.reportedNumbers(reread))
+    }
+
     @Test
     fun countBlockedSinceCountsOnlyBlockedEntriesAtOrAfterTheCutoff() {
         val since = 1_000L
