@@ -481,7 +481,7 @@ class ReportClientTest {
             ScreenedCall("d", null, 500, blocked = false, reported = false),
         )
         val c = client(
-            isReported = { n -> log.any { it.number == n && it.reported } },
+            isReported = { n -> n in ScreenedCallCodec.reportedNumbers(log) },
             markReported = { n -> log = ScreenedCallCodec.markReported(log, n) },
         )
 
@@ -497,6 +497,40 @@ class ReportClientTest {
         assertEquals(ReportOutcome.Sent, c.send(OTHER))
         assertEquals(2, requests.size)
         assertTrue(log.filter { it.number != null }.all { it.reported })
+    }
+
+    @Test
+    fun aCallLoggedAfterTheReportShowsReportedAndIsNeverOfferedAButtonTheClientRefuses() {
+        // #57, with the production wiring in SheketApp and the row rule in ReportActivity.
+        var log = listOf(
+            ScreenedCall("a", NUMBER, 2_000, blocked = true, reported = false),
+            ScreenedCall("b", OTHER, 1_000, blocked = false, reported = false),
+        )
+        val c = client(
+            isReported = { n -> n in ScreenedCallCodec.reportedNumbers(log) },
+            markReported = { n -> log = ScreenedCallCodec.markReported(log, n) },
+        )
+        assertEquals(ReportOutcome.Sent, c.send(NUMBER))
+        assertEquals(1, requests.size)
+
+        // The same number calls again; ScreenedCallLog.append stores it unreported.
+        log = ScreenedCallCodec.prepend(log, ScreenedCall("later", NUMBER, 3_000, blocked = false, reported = false))
+        val unknown = ScreenedCall("unknown", null, 4_000, blocked = false, reported = false)
+        log = ScreenedCallCodec.prepend(log, unknown)
+
+        val reported = ScreenedCallCodec.reportedNumbers(log)
+        val showsReported = log.associate { it.id to (it.number in reported) }
+        assertEquals(mapOf("unknown" to false, "later" to true, "a" to true, "b" to false), showsReported)
+
+        // A row offers a Report button only if the client would send it.
+        val offered = log.filter { it.number !in reported && it.reportable }
+        assertEquals(listOf("b"), offered.map { it.id })
+        for (entry in log.filter { it.number in reported }) {
+            assertEquals(entry.id, ReportOutcome.Refused, c.send(entry.number!!))
+        }
+        assertEquals(1, requests.size)
+        assertEquals(ReportOutcome.Sent, c.send(OTHER))
+        assertEquals(2, requests.size)
     }
 
     @Test
