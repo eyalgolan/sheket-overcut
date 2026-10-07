@@ -66,6 +66,12 @@ CONTRACT_DIR = Path(__file__).parent / "contract"
 # check in `_should_write` if apps measure staleness from their last
 # successful check.
 FORCED_REFRESH = timedelta(hours=6)
+# The largest previous version whose `version + 1` still converts in
+# `_generated_at`: 253402300799 is 9999-12-31T23:59:59Z, the last second
+# `datetime` can represent.
+MAX_VERSION = (
+    int(datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc).timestamp()) - 1
+)
 # EMF heartbeat (`_emit_success`); the stale-list alarm (#8) watches it.
 METRIC_NAMESPACE = "Sheket"
 FUNCTION_NAME = "aggregate"
@@ -520,11 +526,14 @@ def _load_previous(bucket: str) -> tuple[dict | None, int]:
     an object, or an object whose ``version`` is not an integer >= 0, also
     gives ``(None, 0)``; both are logged with the reason only, never the
     content. A whole-valued float ``version`` (e.g. ``9999999999.0``, valid
-    under the schema) counts as an integer and is returned as an ``int``. An
-    unusable previous object therefore means the next run always writes, so a
-    malformed published document is replaced even when its
-    content compares equal, and ``version = max(now, previous_version + 1)``
-    still keeps the version increasing.
+    under the schema) counts as an integer and is returned as an ``int``. A
+    ``version`` above ``MAX_VERSION`` is also unusable (logged, giving
+    ``(None, 0)``), so the run writes a fresh list at version ``now`` instead
+    of failing every run in ``_generated_at``. An unusable previous object
+    therefore means the next run always writes, so a malformed published
+    document is replaced even when its content compares equal, and
+    ``version = max(now, previous_version + 1)`` still keeps the version
+    increasing.
     """
     try:
         response = _s3().get_object(Bucket=bucket, Key=BLOCKLIST_KEY)
@@ -548,14 +557,20 @@ def _load_previous(bucket: str) -> tuple[dict | None, int]:
         return None, 0
 
     version = doc.get("version")
-    if isinstance(version, int) and not isinstance(version, bool) and version >= 0:
-        return doc, version
     if isinstance(version, float) and version.is_integer() and version >= 0:
-        return doc, int(version)
-    logger.error(
-        "previous blocklist version invalid (type=%s); using 0", type(version).__name__
-    )
-    return None, 0
+        version = int(version)
+    if not isinstance(version, int) or isinstance(version, bool) or version < 0:
+        logger.error(
+            "previous blocklist version invalid (type=%s); using 0",
+            type(version).__name__,
+        )
+        return None, 0
+    if version > MAX_VERSION:
+        logger.error(
+            "previous blocklist version out of range (above %d); using 0", MAX_VERSION
+        )
+        return None, 0
+    return doc, version
 
 
 def _content(doc: dict) -> dict:
