@@ -56,6 +56,14 @@ android {
             it.inputs.file(file("src/main/AndroidManifest.xml"))
                 .withPropertyName("mainManifest")
                 .withPathSensitivity(PathSensitivity.RELATIVE)
+            // RefreshJobManifestTest reads these as text; a comment-only edit
+            // leaves the bytecode unchanged, so declare them as inputs too.
+            it.inputs.files(
+                file("src/main/kotlin/app/sheket/SheketApp.kt"),
+                file("src/main/kotlin/app/sheket/data/RefreshJobService.kt"),
+            )
+                .withPropertyName("refreshJobSources")
+                .withPathSensitivity(PathSensitivity.RELATIVE)
         }
     }
 }
