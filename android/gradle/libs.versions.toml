@@ -1,0 +1,14 @@
+# Every version is pinned exactly. AGP 9 has built-in Kotlin, so there is no
+# kotlin-android plugin. Only the kotlinx.serialization JSON tree API is used,
+# so the serialization compiler plugin is deliberately not applied.
+[versions]
+agp = "9.4.1"
+kotlinxSerializationJson = "1.9.0"
+junit = "4.13.2"
+
+[libraries]
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
+junit = { module = "junit:junit", version.ref = "junit" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
