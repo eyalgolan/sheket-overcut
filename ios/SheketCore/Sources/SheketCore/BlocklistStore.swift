@@ -17,8 +17,12 @@ import Foundation
 // - A list whose `version` is not greater than the held one is ignored
 //   (spec section 6.1), and nothing is written, not even its ETag.
 // - The ETag is only meaningful while `blocklist.json` exists: if the list is
-//   missing or unreadable, the stored ETag is cleared so the next request does
-//   not send `If-None-Match` and get a `304` for a list the device lacks.
+//   missing or unreadable, `state()` reports a nil ETag so the next request
+//   does not send `If-None-Match` and get a `304` for a list the device lacks.
+// - `current()` and `state()` are pure reads and never write, so the
+//   extensions can call them without writing to the shared container. Only
+//   the app-side writes (`accept`, `recordSuccess`, `recordReload`,
+//   `repairIfNeeded`) save a cleared ETag to disk.
 // - Writes are atomic and go in the order `blocklist.json`,
 //   `call-directory.bin`, `state.json`. An interrupted sequence leaves
 //   `state.json` behind the list, which `repairIfNeeded()` detects and fixes.
@@ -102,23 +106,19 @@ public final class BlocklistStore {
     // MARK: - Reading
 
     /// The stored list, or nil when `blocklist.json` is missing or does not
-    /// decode. When nil, a stored ETag is cleared.
+    /// decode. A pure read: never writes.
     public func current() -> Blocklist? {
-        if let list = readList()?.list {
-            return list
-        }
-        try? clearETagIfListMissing()
-        return nil
+        readList()?.list
     }
 
     /// The stored state, or nil when `state.json` is missing or does not
-    /// decode. When the list is missing, the ETag is cleared on disk and the
-    /// returned state has a nil `etag`.
+    /// decode. When the list is missing or does not decode, the returned
+    /// state has a nil `etag`. A pure read: never writes; the cleared ETag is
+    /// saved by the next app-side write.
     public func state() -> BlocklistState? {
         guard var state = readState() else { return nil }
         if state.etag != nil, readList() == nil {
             state.etag = nil
-            try? writeState(state)
         }
         return state
     }

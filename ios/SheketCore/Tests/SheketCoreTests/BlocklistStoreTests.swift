@@ -68,8 +68,8 @@ final class BlocklistStoreTests: XCTestCase {
         return entries
     }
 
-    /// `state.json` decoded directly from disk, without `store.state()`'s
-    /// ETag clearing.
+    /// `state.json` decoded directly from disk, without the nil ETag that
+    /// `store.state()` reports when the list is missing.
     private func stateOnDisk() throws -> BlocklistState {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .secondsSince1970
@@ -208,13 +208,19 @@ final class BlocklistStoreTests: XCTestCase {
         XCTAssertEqual(try store.accept(seed, etag: "x", now: t0), .accepted)
 
         try Data("{not json".utf8).write(to: url(BlocklistStore.blocklistFileName))
+        let before = snapshot()
 
         XCTAssertNil(store.current())
-        XCTAssertNil(try stateOnDisk().etag, "current() must clear the ETag on disk")
         let state = try XCTUnwrap(store.state())
         XCTAssertNil(state.etag)
         XCTAssertEqual(state.version, Self.seedVersion, "only the ETag is cleared")
         XCTAssertEqual(state.firstRunAt, t0)
+        XCTAssertEqual(snapshot(), before, "current() and state() must not write")
+        XCTAssertEqual(try stateOnDisk().etag, "x")
+
+        // An app-side write saves the cleared ETag.
+        try store.recordSuccess(now: t1)
+        XCTAssertNil(try stateOnDisk().etag)
 
         // The corrupt list counts as version 0, so the seed is taken again.
         XCTAssertEqual(try store.accept(seed, etag: nil, now: t1), .accepted)
@@ -226,8 +232,16 @@ final class BlocklistStoreTests: XCTestCase {
         XCTAssertEqual(try store.accept(Contract.data(Self.seedFile), etag: "x", now: t0), .accepted)
         try FileManager.default.removeItem(at: url(BlocklistStore.blocklistFileName))
 
+        let before = snapshot()
+
+        XCTAssertNil(store.current())
         XCTAssertNil(try XCTUnwrap(store.state()).etag)
-        XCTAssertNil(try stateOnDisk().etag, "state() must clear the ETag on disk")
+        XCTAssertEqual(snapshot(), before, "current() and state() must not write")
+        XCTAssertEqual(try stateOnDisk().etag, "x")
+
+        // An app-side write saves the cleared ETag.
+        XCTAssertFalse(try store.repairIfNeeded())
+        XCTAssertNil(try stateOnDisk().etag)
     }
 
     // MARK: - AC-5: repair
