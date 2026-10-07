@@ -11,6 +11,8 @@ import app.sheket.data.BlocklistStore
 import app.sheket.data.RefreshJobService
 import app.sheket.report.InstallId
 import app.sheket.report.ReportClient
+import app.sheket.report.ReportOutcome
+import app.sheket.report.ReportTracker
 import app.sheket.screening.ScreenedCallLog
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -52,6 +54,15 @@ class SheketApp : Application() {
         )
     }
 
+    /** Reports in flight and the last result; outlives the report screen. */
+    val reportTracker: ReportTracker by lazy {
+        ReportTracker(
+            send = { number -> reportClient.send(number).also(::logRejected) },
+            runInBackground = executor::execute,
+            postToMain = { mainHandler.post(it) },
+        )
+    }
+
     override fun onCreate() {
         super.onCreate()
         // The repository is not loaded here: first use (on the executor or by
@@ -65,6 +76,14 @@ class SheketApp : Application() {
     // never touch android.util.Log.
     private fun logLoaded(repository: BlocklistRepository) {
         if (BuildConfig.DEBUG) Log.d(TAG, "blocklist loaded: ${repository.summary}")
+    }
+
+    // Logged where the report is sent, so it is logged once even when no
+    // report screen is showing. Only the rejected field, never the number.
+    private fun logRejected(outcome: ReportOutcome) {
+        if (outcome is ReportOutcome.NotSent && outcome.errorField != null) {
+            Log.w(TAG, "report rejected: field=${outcome.errorField}")
+        }
     }
 
     private companion object {

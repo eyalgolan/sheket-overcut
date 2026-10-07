@@ -4,7 +4,6 @@ import android.app.Activity
 import android.os.Bundle
 import android.text.BidiFormatter
 import android.text.TextDirectionHeuristics
-import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import android.widget.BaseAdapter
@@ -24,14 +23,12 @@ import java.util.Date
  * first, with a one-tap Report button on each entry whose number is E.164 and
  * not yet reported (spec 6.2).
  *
- * The log is read and each report is sent on the app's single-thread
- * executor; the UI never waits on the result (spec 6.2). A report that is not
- * sent is dropped and the user is told so (spec 7). After every report the
- * log is reread, so all entries with the reported number show as reported.
- *
- * Known limitation: on a configuration change a report in flight still
- * finishes on the executor, but its result message is dropped by the alive
- * guard; the new instance redraws from the log.
+ * The log is read on the app's single-thread executor. Reports are sent
+ * through the app-scoped [app.sheket.report.ReportTracker], so the UI never
+ * waits on the result (spec 6.2), and a report in flight across a rotation
+ * keeps its spinner and its result. A report that is not sent is dropped and
+ * the user is told so (spec 7). After every report the log is reread, so all
+ * entries with the reported number show as reported.
  */
 class ReportActivity : Activity() {
 
@@ -45,8 +42,11 @@ class ReportActivity : Activity() {
     /** Main thread only: the log as last read, newest first. */
     private var entries: List<ScreenedCall> = emptyList()
 
-    /** Main thread only: ids of the entries whose report is in flight. */
-    private val pending: MutableSet<String> = mutableSetOf()
+    /** Attached to the tracker while started; holds this instance only then. */
+    private val onOutcome: (ReportOutcome) -> Unit = { outcome ->
+        showResult(outcome)
+        reload()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,9 +58,29 @@ class ReportActivity : Activity() {
         list.adapter = adapter
     }
 
+    override fun onStart() {
+        super.onStart()
+        app.reportTracker.addListener(onOutcome)
+    }
+
     override fun onResume() {
         super.onResume()
+        // A result that arrived while no instance was started, or before a
+        // rotation, is shown again; showing it twice sets the same text.
+        app.reportTracker.lastOutcome?.let(::showResult)
         reload()
+    }
+
+    override fun onStop() {
+        app.reportTracker.removeListener(onOutcome)
+        super.onStop()
+    }
+
+    override fun onDestroy() {
+        // Leaving the screen, not a rotation: the next visit starts without
+        // the old result. A report still in flight sets a new one.
+        if (isFinishing) app.reportTracker.clearLastOutcome()
+        super.onDestroy()
     }
 
     /** Reads the log on the executor and redraws the list. */
@@ -82,23 +102,7 @@ class ReportActivity : Activity() {
     /** Sends one report for [entry], whose number is E.164 (only such rows have a button). */
     private fun report(entry: ScreenedCall) {
         val number = entry.number ?: return
-        val id = entry.id
-        pending += id
-        adapter.notifyDataSetChanged()
-        app.executor.execute {
-            val outcome = runCatching { app.reportClient.send(number) }.getOrDefault(ReportOutcome.NotSent())
-            app.mainHandler.post {
-                pending -= id
-                // Only the rejected field is logged, never the number.
-                if (outcome is ReportOutcome.NotSent && outcome.errorField != null) {
-                    Log.w(TAG, "report rejected: field=${outcome.errorField}")
-                }
-                if (isAlive()) {
-                    showResult(outcome)
-                    reload()
-                }
-            }
-        }
+        if (app.reportTracker.start(entry.id, number)) adapter.notifyDataSetChanged()
     }
 
     private fun showResult(outcome: ReportOutcome) {
@@ -164,7 +168,7 @@ class ReportActivity : Activity() {
 
             row.report.setOnClickListener(null)
             when {
-                entry.id in pending -> {
+                entry.id in app.reportTracker.pending -> {
                     row.report.visibility = View.GONE
                     row.progress.visibility = View.VISIBLE
                     row.state.visibility = View.GONE
@@ -187,9 +191,5 @@ class ReportActivity : Activity() {
             row.state.setText(text)
             row.state.visibility = View.VISIBLE
         }
-    }
-
-    private companion object {
-        const val TAG = "Sheket"
     }
 }
