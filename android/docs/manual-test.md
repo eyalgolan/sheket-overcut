@@ -10,6 +10,9 @@ service. This script covers the five AC-6 cases of #22:
 - (e) a blocked call appears in the system call log with no missed-call
   notification.
 
+It also checks (f), from #52: on API 35 and higher, no screen is drawn under
+the action bar.
+
 Run it on a real device if you can. An emulator covers every case except (c).
 Record each run with the template at the end.
 
@@ -201,6 +204,29 @@ Use the call from case (a).
 The `adb` shell cannot read the call log (it does not hold `READ_CALL_LOG`),
 so this case is checked in the Phone app.
 
+### (f) No screen is drawn under the action bar (API 35 or higher)
+
+The app targets SDK 36, so on API 35 and higher Android draws it edge to
+edge (#52). Skip this case on API 29 to 34 and record "not run". Run it after
+case (a), so the report screen has rows.
+
+1. Open Sheket. Expected: the "Status" title, and the role line under it, are
+   fully below the action bar.
+2. Tap "Report a call" on the status screen, then come back. Expected: the
+   "Report a call" title and the newest row's Report button are fully below
+   the action bar. Do not tap Report: that would start a report for the row.
+3. Tap "About and privacy", then come back. Expected: the "About Sheket" title
+   is fully below the action bar.
+4. Optional, for exact bounds, run this on each of the three screens:
+
+   ```
+   adb shell uiautomator dump /data/local/tmp/ui.xml
+   adb shell cat /data/local/tmp/ui.xml
+   ```
+
+   Expected: the top of the first content element is at or below the bottom
+   of `android:id/action_bar_container`.
+
 ## 5. Clean up
 
 ```
@@ -237,4 +263,5 @@ Step 4(a) list loaded:        (paste the "blocklist loaded:" line)
 | (c) withheld call rings | | |
 | (d) outgoing call unaffected | | |
 | (e) in call log, no missed-call notification | | |
+| (f) no screen under the action bar (API 35+) | | |
 ```
