@@ -1,6 +1,8 @@
 package app.sheket.data
 
+import app.sheket.data.TestDocuments.SEED_GENERATED_AT
 import app.sheket.data.TestDocuments.SEED_VERSION
+import app.sheket.data.TestDocuments.TEST_GENERATED_AT
 import app.sheket.data.TestDocuments.TEST_LIST_NUMBER
 import app.sheket.data.TestDocuments.TEST_VERSION
 import org.junit.Assert.assertArrayEquals
@@ -38,7 +40,7 @@ class BlocklistRepositoryTest {
 
         assertEquals(ListSource.SEED, repo.summary.source)
         assertEquals(SEED_VERSION, repo.summary.version)
-        assertEquals("2026-10-04T21:34:28Z", repo.summary.generatedAt)
+        assertEquals(SEED_GENERATED_AT, repo.summary.generatedAt)
         assertNull(store.storedEtag)
         assertEquals(0, store.writes)
     }
@@ -52,7 +54,7 @@ class BlocklistRepositoryTest {
 
         assertEquals(ListSource.STORED, repo.summary.source)
         assertEquals(TEST_VERSION, repo.summary.version)
-        assertEquals("2026-10-05T12:00:00Z", repo.summary.generatedAt)
+        assertEquals(TEST_GENERATED_AT, repo.summary.generatedAt)
         assertEquals(2, repo.summary.callNumbers)
         assertEquals(2, repo.summary.callPrefixes)
         assertTrue(repo.matcher.shouldBlock(TEST_LIST_NUMBER))

@@ -4,12 +4,19 @@ import app.sheket.core.ContractFiles
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.long
 
 /** Blocklist documents for the data-layer tests, all derived from the read-only files in `contract/`. */
 object TestDocuments {
 
-    const val SEED_VERSION = 1791149668L
-    const val TEST_VERSION = 1791201600L
+    // Read from contract/, never copied, so regenerating the seed does not need an android change.
+    val SEED_VERSION: Long get() = ContractFiles.json("seed-blocklist.json")["version"]!!.jsonPrimitive.long
+    val TEST_VERSION: Long get() = ContractFiles.json("test-blocklist.json")["version"]!!.jsonPrimitive.long
+    val SEED_GENERATED_AT: String get() =
+        ContractFiles.json("seed-blocklist.json")["generated_at"]!!.jsonPrimitive.content
+    val TEST_GENERATED_AT: String get() =
+        ContractFiles.json("test-blocklist.json")["generated_at"]!!.jsonPrimitive.content
 
     /** In `test-blocklist.json` `call_numbers`, not in the seed. */
     const val TEST_LIST_NUMBER = "+972555001234"
