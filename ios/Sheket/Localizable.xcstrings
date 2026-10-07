@@ -75,13 +75,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reports are deleted after 30 days. Your IP address is not stored."
+            "value" : "Reports, including a salted hash of your IP address's network (/24), are deleted after 30 days. Your raw IP address is not stored."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "הדיווחים נמחקים לאחר 30 יום. כתובת ה-IP שלך לא נשמרת."
+            "value" : "הדיווחים, כולל גיבוב עם מלח של רשת כתובת ה-IP שלך (/24), נמחקים לאחר 30 יום. כתובת ה-IP המלאה שלך לא נשמרת."
           }
         }
       }
