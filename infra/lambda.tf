@@ -139,20 +139,26 @@ resource "aws_lambda_function_url" "report" {
   invoke_mode        = "BUFFERED"
 }
 
-# A public function URL needs both permissions: InvokeFunctionUrl and
-# InvokeFunction restricted to calls made through the function URL.
-resource "aws_lambda_permission" "report_url" {
-  statement_id           = "FunctionURLAllowPublicAccess"
-  action                 = "lambda:InvokeFunctionUrl"
-  function_name          = aws_lambda_function.report.function_name
-  principal              = "*"
-  function_url_auth_type = "NONE"
+# A public function URL needs both InvokeFunctionUrl and InvokeFunction. For
+# authorization_type = "NONE" the aws provider (6.67.0, as pinned) creates both
+# statements itself when it creates the URL: FunctionURLAllowPublicAccess
+# (InvokeFunctionUrl) and FunctionURLAllowInvokeAction (InvokeFunction, only
+# when invoked via the function URL). Declaring either one again makes a fresh
+# apply fail on a duplicate statement id (issue #56), so the module declares
+# neither. Deployments that imported them keep the live statements; Terraform
+# only forgets them from state.
+removed {
+  from = aws_lambda_permission.report_url
+
+  lifecycle {
+    destroy = false
+  }
 }
 
-resource "aws_lambda_permission" "report_url_invoke" {
-  statement_id             = "FunctionURLAllowInvokeAction"
-  action                   = "lambda:InvokeFunction"
-  function_name            = aws_lambda_function.report.function_name
-  principal                = "*"
-  invoked_via_function_url = true
+removed {
+  from = aws_lambda_permission.report_url_invoke
+
+  lifecycle {
+    destroy = false
+  }
 }
