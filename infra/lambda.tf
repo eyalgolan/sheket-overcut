@@ -33,7 +33,7 @@ data "archive_file" "code" {
 }
 
 # Run backend/scripts/build_layer.sh before `terraform plan`. The layer holds the
-# backend/requirements.txt dependencies; boto3 comes from the Lambda runtime.
+# backend/requirements-lock.txt dependencies; boto3 comes from the Lambda runtime.
 data "archive_file" "layer" {
   type             = "zip"
   source_dir       = "${path.module}/../backend/build/layer"
