@@ -26,6 +26,7 @@ import pytest
 from conftest import BUCKET_NAME, TABLE_NAME, load_contract
 from test_aggregate_handler import (
     CALL,
+    FUNCTION_NAME,
     NET_A,
     NET_B,
     NOW,
@@ -57,11 +58,12 @@ NEWEST_FIRST = DAYS[::-1]
 
 @pytest.fixture(autouse=True)
 def aggregate_env(monkeypatch, contract_dir):
-    """Configure the handler as Terraform would, like the handler tests."""
+    """Configure the handler as Terraform and Lambda would, like the handler tests."""
     monkeypatch.setenv("TABLE_NAME", TABLE_NAME)
     monkeypatch.setenv("BUCKET_NAME", BUCKET_NAME)
     monkeypatch.setenv("MIN_INSTALLS", "3")
     monkeypatch.setenv("MIN_NETWORKS", "2")
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", FUNCTION_NAME)
     monkeypatch.setattr(aggregate, "CONTRACT_DIR", contract_dir)
 
 

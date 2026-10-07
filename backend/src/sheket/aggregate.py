@@ -87,9 +87,9 @@ MAX_REPORTS_PER_RUN = 1_000_000
 READ_TIME_BUDGET = 240
 # EMF line (`_emit_success`): the stale-list alarm (#8) watches its
 # AggregateSucceeded heartbeat and the report-read-capped alarm its
-# ReportReadCapped flag.
+# ReportReadCapped flag. The Function dimension is the Lambda function name
+# (AWS_LAMBDA_FUNCTION_NAME), so it follows name_prefix like the alarms do.
 METRIC_NAMESPACE = "Sheket"
-FUNCTION_NAME = "aggregate"
 # Use with fullmatch only: an anchoring "$" would accept a trailing newline.
 _THRESHOLD = re.compile(r"[0-9]+")
 
@@ -155,6 +155,7 @@ class _Config(NamedTuple):
     bucket: str
     min_installs: int
     min_networks: int
+    function_name: str
 
 
 def _threshold(name: str) -> int:
@@ -181,6 +182,8 @@ def _config() -> _Config:
         bucket=os.environ["BUCKET_NAME"],
         min_installs=_threshold("MIN_INSTALLS"),
         min_networks=_threshold("MIN_NETWORKS"),
+        # Reserved variable set by the Lambda runtime, not by Terraform.
+        function_name=os.environ["AWS_LAMBDA_FUNCTION_NAME"],
     )
 
 
@@ -694,13 +697,16 @@ def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
     return age >= FORCED_REFRESH
 
 
-def _emit_success(written: bool, doc: dict, capped: bool) -> None:
+def _emit_success(
+    written: bool, doc: dict, capped: bool, function_name: str
+) -> None:
     """Print one CloudWatch Embedded Metric Format line for a successful run.
 
     The metrics are ``AggregateSucceeded = 1`` and ``ReportReadCapped`` (``1``
     when the report read hit ``MAX_REPORTS_PER_RUN`` or ``READ_TIME_BUDGET``,
     else ``0``) in namespace ``Sheket`` with the dimension
-    ``Function = aggregate``; ``written``, ``call_numbers`` and
+    ``Function = function_name`` (the Lambda function name, which the alarms
+    also use); ``written``, ``call_numbers`` and
     ``sms_senders`` are plain properties (not metrics) for the audit trail.
     ``print``, not the logger: EMF needs the raw single-line JSON on stdout.
     Not emitted when the run raises, so the stale-list alarm (#8) sees a
@@ -720,7 +726,7 @@ def _emit_success(written: bool, doc: dict, capped: bool) -> None:
                 }
             ],
         },
-        "Function": FUNCTION_NAME,
+        "Function": function_name,
         "AggregateSucceeded": 1,
         "ReportReadCapped": 1 if capped else 0,
         "written": written,
@@ -783,4 +789,4 @@ def handler(event, context) -> None:
         len(doc["sms_senders"]),
     )
     # build_blocklist has drained the report stream, so the flag is final.
-    _emit_success(written, doc, read_status["capped"])
+    _emit_success(written, doc, read_status["capped"], cfg.function_name)

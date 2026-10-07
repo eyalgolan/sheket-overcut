@@ -67,8 +67,8 @@ resource "aws_cloudwatch_metric_alarm" "aggregate_errors" {
 }
 
 # Uses the metric, namespace and dimension emitted by _emit_success in
-# backend/src/sheket/aggregate.py (METRIC_NAMESPACE = "Sheket",
-# FUNCTION_NAME = "aggregate"), so the dimension is a literal, not name_prefix.
+# backend/src/sheket/aggregate.py (METRIC_NAMESPACE = "Sheket"). The Function
+# dimension is the Lambda's AWS_LAMBDA_FUNCTION_NAME, so it follows name_prefix.
 # Fires after 3 x 15 minutes = 45 minutes with no successful run. Missing data is
 # breaching because a missing heartbeat is the failure.
 resource "aws_cloudwatch_metric_alarm" "blocklist_stale" {
@@ -76,7 +76,7 @@ resource "aws_cloudwatch_metric_alarm" "blocklist_stale" {
   alarm_description   = "No successful aggregate run for 45 minutes, so the blocklist is older than 45 minutes (spec §5, §7)."
   namespace           = "Sheket"
   metric_name         = "AggregateSucceeded"
-  dimensions          = { Function = "aggregate" }
+  dimensions          = { Function = aws_lambda_function.aggregate.function_name }
   statistic           = "Sum"
   period              = 900
   evaluation_periods  = 3
@@ -90,8 +90,8 @@ resource "aws_cloudwatch_metric_alarm" "blocklist_stale" {
 
 # Uses the ReportReadCapped flag that _emit_success emits on every successful
 # run (1 when the report read hit MAX_REPORTS_PER_RUN or READ_TIME_BUDGET in
-# backend/src/sheket/aggregate.py, else 0), with the same literal namespace and
-# dimension as blocklist_stale. Fires on the first capped run in a 15-minute
+# backend/src/sheket/aggregate.py, else 0), with the same namespace and
+# function-name dimension as blocklist_stale. Fires on the first capped run in a 15-minute
 # period. Missing data is notBreaching: a missing heartbeat is blocklist_stale's
 # job.
 resource "aws_cloudwatch_metric_alarm" "report_read_capped" {
@@ -99,7 +99,7 @@ resource "aws_cloudwatch_metric_alarm" "report_read_capped" {
   alarm_description   = "The aggregate Lambda capped its report read during a flood, so the oldest reports were not counted (spec §5)."
   namespace           = "Sheket"
   metric_name         = "ReportReadCapped"
-  dimensions          = { Function = "aggregate" }
+  dimensions          = { Function = aws_lambda_function.aggregate.function_name }
   statistic           = "Maximum"
   period              = 900
   evaluation_periods  = 1

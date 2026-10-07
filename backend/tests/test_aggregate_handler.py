@@ -41,6 +41,8 @@ PACKAGED_CONTRACT_DIR = aggregate.CONTRACT_DIR
 
 MIN_INSTALLS = 3
 MIN_NETWORKS = 2
+# Set by the Lambda runtime, not Terraform: "<name_prefix>-aggregate".
+FUNCTION_NAME = "sheket-aggregate"
 
 CALL = "+972501234567"
 SMS = "ExampleParty"
@@ -61,7 +63,7 @@ def install_id(n):
 
 @pytest.fixture(autouse=True)
 def aggregate_env(monkeypatch, contract_dir):
-    """Configure the handler as Terraform would (spec 6.3 thresholds).
+    """Configure the handler as Terraform and Lambda would (spec 6.3 thresholds).
 
     ``CONTRACT_DIR`` points at the repository's ``contract/``: the packaged
     ``sheket/contract/`` copy exists only in the Lambda zip (#7).
@@ -70,6 +72,7 @@ def aggregate_env(monkeypatch, contract_dir):
     monkeypatch.setenv("BUCKET_NAME", BUCKET_NAME)
     monkeypatch.setenv("MIN_INSTALLS", str(MIN_INSTALLS))
     monkeypatch.setenv("MIN_NETWORKS", str(MIN_NETWORKS))
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", FUNCTION_NAME)
     monkeypatch.setattr(aggregate, "CONTRACT_DIR", contract_dir)
 
 
@@ -1239,7 +1242,7 @@ def test_successful_run_prints_exactly_one_emf_line(aws, capsys):
             ],
         }
     ]
-    assert line["Function"] == "aggregate"
+    assert line["Function"] == FUNCTION_NAME
     assert line["AggregateSucceeded"] == 1
     # An uncapped run still emits the flag, as 0, so the alarm sees data.
     assert line["ReportReadCapped"] == 0
@@ -1310,16 +1313,24 @@ def test_bucket_name_is_read_from_the_environment(aws, monkeypatch):
     s3.head_object(Bucket="other-bucket", Key=BLOCKLIST_KEY)
 
 
-def test_config_reads_all_four_variables(monkeypatch):
+def test_config_reads_all_five_variables(monkeypatch):
     monkeypatch.setenv("TABLE_NAME", "t1")
     monkeypatch.setenv("BUCKET_NAME", "b1")
     monkeypatch.setenv("MIN_INSTALLS", "7")
     monkeypatch.setenv("MIN_NETWORKS", "4")
-    assert aggregate._config() == ("t1", "b1", 7, 4)
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", "f1")
+    assert aggregate._config() == ("t1", "b1", 7, 4, "f1")
 
 
 @pytest.mark.parametrize(
-    "name", ["TABLE_NAME", "BUCKET_NAME", "MIN_INSTALLS", "MIN_NETWORKS"]
+    "name",
+    [
+        "TABLE_NAME",
+        "BUCKET_NAME",
+        "MIN_INSTALLS",
+        "MIN_NETWORKS",
+        "AWS_LAMBDA_FUNCTION_NAME",
+    ],
 )
 def test_missing_variable_raises_before_any_aws_call(monkeypatch, name):
     # No moto fixture: an AWS call would fail with _NoAwsClient's error instead.

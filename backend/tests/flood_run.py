@@ -142,6 +142,7 @@ def run_shape(name):
         "BUCKET_NAME": "sheket-blocklist-test",
         "MIN_INSTALLS": "3",
         "MIN_NETWORKS": "2",
+        "AWS_LAMBDA_FUNCTION_NAME": "sheket-aggregate",
     }.items():
         os.environ[key] = value
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
