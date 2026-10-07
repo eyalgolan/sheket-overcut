@@ -139,6 +139,35 @@ public enum CallDirectoryEntries {
         }
     }
 
+    /// True only when `SenderNormalizer.normalize(raw)` gives an E.164 number
+    /// whose digits are in `entries`. Anything else (empty input, sender IDs
+    /// such as `Unknown`, short numbers such as `100`, star codes such as
+    /// `*2700`) is not blocked.
+    ///
+    /// Precondition: `entries` is sorted ascending, as returned by `build` or
+    /// read through `forEachEntry(in:_:)`.
+    ///
+    /// This searches the entries iOS installs and does not match prefixes
+    /// separately, so a prefix that `build` skipped or cut off at the cap is
+    /// not blocked here either.
+    public static func isBlocked(_ raw: String, entries: [Int64]) -> Bool {
+        guard let n = SenderNormalizer.normalize(raw),
+              SenderNormalizer.isE164(n),
+              let value = Int64(n.dropFirst()) else { return false }
+        // Lower-bound binary search.
+        var lo = 0
+        var hi = entries.count
+        while lo < hi {
+            let mid = lo + (hi - lo) / 2
+            if entries[mid] < value {
+                lo = mid + 1
+            } else {
+                hi = mid
+            }
+        }
+        return lo < entries.count && entries[lo] == value
+    }
+
     /// The digits after the `+` as an `Int64`, or nil unless `s` is `+`,
     /// then `1`-`9`, then ASCII digits only, with at most `maxDigits` digits.
     private static func digits(_ s: String) -> Int64? {
