@@ -2,8 +2,8 @@
 
 The contract fixtures load the read-only files in ``contract/``. The AWS
 fixtures give every test a dummy AWS environment and, on request, an
-in-memory DynamoDB table from moto, so no test needs AWS credentials or
-reaches a real endpoint (spec section 11).
+in-memory DynamoDB table and S3 bucket from moto, so no test needs AWS
+credentials or reaches a real endpoint (spec section 11).
 """
 
 import json
@@ -16,6 +16,7 @@ from moto import mock_aws
 CONTRACT_DIR = Path(__file__).resolve().parents[2] / "contract"
 
 TABLE_NAME = "reports"
+BUCKET_NAME = "sheket-blocklist-test"
 # A test-only value. The real salt is deployment configuration, never in source.
 TEST_IP_HASH_SALT = "test-only-salt-not-a-secret"
 
@@ -57,30 +58,34 @@ def pytest_generate_tests(metafunc):
 
 
 class _NoAwsClient:
-    """Stands in for the report handler's DynamoDB client outside moto.
+    """Stands in for the handlers' cached AWS clients outside moto.
 
-    Any use fails the test, so a test that forgets ``ddb_table`` (or a stub
-    client) can never send a request to real AWS.
+    Any use fails the test, so a test that forgets ``ddb_table`` or
+    ``s3_bucket`` (or a stub client) can never send a request to real AWS.
     """
 
     def __getattr__(self, name):
-        raise AssertionError("no moto: request ddb_table or set a stub client")
+        raise AssertionError(
+            "no moto: request ddb_table / s3_bucket or set a stub client"
+        )
 
 
 @pytest.fixture(autouse=True)
 def aws_env(monkeypatch, tmp_path):
     """Replace any real AWS configuration with dummy values for every test.
 
-    The handler's cached client is replaced with ``_NoAwsClient``; the
-    ``ddb_table`` fixture resets it so a moto client is created instead.
+    The handlers' cached clients are replaced with ``_NoAwsClient``; the
+    ``ddb_table`` and ``s3_bucket`` fixtures reset them so moto clients are
+    created instead.
     """
-    from sheket import report
+    from sheket import aggregate, report
 
     for name in (
         "AWS_PROFILE",
         "AWS_DEFAULT_PROFILE",
         "AWS_ENDPOINT_URL",
         "AWS_ENDPOINT_URL_DYNAMODB",
+        "AWS_ENDPOINT_URL_S3",
     ):
         monkeypatch.delenv(name, raising=False)
     missing = str(tmp_path / "no-aws-config")
@@ -93,6 +98,8 @@ def aws_env(monkeypatch, tmp_path):
     monkeypatch.setenv("TABLE_NAME", TABLE_NAME)
     monkeypatch.setenv("IP_HASH_SALT", TEST_IP_HASH_SALT)
     monkeypatch.setattr(report, "_client", _NoAwsClient())
+    monkeypatch.setattr(aggregate, "_ddb_client", _NoAwsClient())
+    monkeypatch.setattr(aggregate, "_s3_client", _NoAwsClient())
 
 
 @pytest.fixture
@@ -100,13 +107,14 @@ def ddb_table(aws_env):
     """Yield a moto DynamoDB table with the report handler's key schema.
 
     ``pk`` (HASH) and ``sk`` (RANGE) are strings; the Terraform table must
-    match. The handler's cached client is reset on entry and exit so it is
-    always created inside this moto context.
+    match. The handlers' cached DynamoDB clients are reset on entry and exit
+    so they are always created inside this moto context.
     """
-    from sheket import report
+    from sheket import aggregate, report
 
     with mock_aws():
         report._client = None
+        aggregate._ddb_client = None
         client = boto3.client("dynamodb")
         client.create_table(
             TableName=TABLE_NAME,
@@ -124,3 +132,24 @@ def ddb_table(aws_env):
             yield client
         finally:
             report._client = None
+            aggregate._ddb_client = None
+
+
+@pytest.fixture
+def s3_bucket(aws_env):
+    """Yield a moto S3 client with an empty ``BUCKET_NAME`` bucket.
+
+    The aggregate handler's cached S3 client is reset on entry and exit so it
+    is always created inside this moto context. Combined with ``ddb_table``,
+    the nested moto contexts share one in-memory backend.
+    """
+    from sheket import aggregate
+
+    with mock_aws():
+        aggregate._s3_client = None
+        client = boto3.client("s3")
+        client.create_bucket(Bucket=BUCKET_NAME)
+        try:
+            yield client
+        finally:
+            aggregate._s3_client = None
