@@ -428,3 +428,81 @@ def serialize_blocklist(doc: dict) -> str:
     match ``contract/seed-blocklist.json`` byte for byte.
     """
     return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
+
+
+def _query_all(**kwargs) -> list[dict]:
+    """Run a DynamoDB query over every page; return the items as plain dicts.
+
+    ``LastEvaluatedKey`` is followed as ``ExclusiveStartKey`` until it is
+    absent; the caller's ``kwargs`` are not mutated. Only string (``S``)
+    attributes are kept, as ``{name: value}``; any other attribute is dropped,
+    so a malformed item reaches the builder with a field missing and is
+    logged and skipped there, never raised here.
+    """
+    params = dict(kwargs)
+    items: list[dict] = []
+    while True:
+        page = _dynamodb().query(**params)
+        for raw in page.get("Items", []):
+            items.append(
+                {
+                    name: value["S"]
+                    for name, value in raw.items()
+                    if isinstance(value, dict) and isinstance(value.get("S"), str)
+                }
+            )
+        last_key = page.get("LastEvaluatedKey")
+        if not last_key:
+            return items
+        params["ExclusiveStartKey"] = last_key
+
+
+def _load_reports(table: str, now: int) -> list[dict]:
+    """Load the reports of the last ``WINDOW`` from their UTC day partitions.
+
+    Reports are stored under ``pk = "R#YYYY-MM-DD"`` with ``sk`` starting with
+    ``received_at`` (``sheket.report``). Every day from the cutoff's day to
+    ``now``'s day is queried; the oldest partition is narrowed with
+    ``sk >= cutoff`` (``now`` is whole seconds, so a report exactly at the
+    cutoff is included). This only limits the read: the builder's
+    ``received_at`` check stays the exact window filter and also drops
+    reports dated after ``now``. Logs carry counts only, never item contents.
+    """
+    now_dt = datetime.fromtimestamp(now, timezone.utc)
+    cutoff = now_dt - WINDOW
+    cut = cutoff.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    first_day = cutoff.date()
+    last_day = now_dt.date()
+
+    reports: list[dict] = []
+    partitions = 0
+    day = first_day
+    while day <= last_day:
+        values = {":pk": {"S": f"R#{day.strftime('%Y-%m-%d')}"}}
+        condition = "pk = :pk"
+        if day == first_day:
+            condition = "pk = :pk AND sk >= :cut"
+            values[":cut"] = {"S": cut}
+        reports.extend(
+            _query_all(
+                TableName=table,
+                KeyConditionExpression=condition,
+                ExpressionAttributeValues=values,
+                ProjectionExpression="kind, sender, install_id, net_hash, received_at",
+            )
+        )
+        partitions += 1
+        day += timedelta(days=1)
+
+    logger.info("loaded %d reports from %d day partitions", len(reports), partitions)
+    return reports
+
+
+def _load_overrides(table: str) -> list[dict]:
+    """Load the operator ``OVERRIDE`` items; only ``sk`` is read (spec 6.3)."""
+    return _query_all(
+        TableName=table,
+        KeyConditionExpression="pk = :o",
+        ExpressionAttributeValues={":o": {"S": OVERRIDE_PK}},
+        ProjectionExpression="sk",
+    )
