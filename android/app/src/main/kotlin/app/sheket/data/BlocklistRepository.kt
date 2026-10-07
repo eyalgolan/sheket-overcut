@@ -53,10 +53,7 @@ enum class AcceptResult {
  *
  * @param seed reads the bundled seed list; null or a throw means no seed.
  */
-class BlocklistRepository(
-    private val store: BlocklistStore,
-    private val seed: () -> ByteArray?,
-) {
+class BlocklistRepository(private val store: BlocklistStore, private val seed: () -> ByteArray?) {
 
     private class State(val blocklist: Blocklist?, val matcher: CallMatcher, val summary: BlocklistSummary)
 
@@ -125,8 +122,7 @@ class BlocklistRepository(
         return AcceptResult.ACCEPTED
     }
 
-    private fun parseOk(bytes: ByteArray): Blocklist? =
-        (BlocklistParser.parse(bytes) as? ParseResult.Ok)?.blocklist
+    private fun parseOk(bytes: ByteArray): Blocklist? = (BlocklistParser.parse(bytes) as? ParseResult.Ok)?.blocklist
 
     private fun stateOf(blocklist: Blocklist, source: ListSource) = State(
         blocklist = blocklist,

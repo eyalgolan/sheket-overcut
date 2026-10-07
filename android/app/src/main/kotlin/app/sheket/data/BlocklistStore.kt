@@ -1,5 +1,6 @@
 package app.sheket.data
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.AtomicFile
@@ -54,14 +55,16 @@ class AndroidBlocklistStore(context: Context) : BlocklistStore {
     private val prefs: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
 
-    override fun readList(): ByteArray? =
-        try {
-            atomicFile.readFully()
-        } catch (e: IOException) {
-            // Includes FileNotFoundException: no list stored yet.
-            null
-        }
+    override fun readList(): ByteArray? = try {
+        atomicFile.readFully()
+    } catch (e: IOException) {
+        // Includes FileNotFoundException: no list stored yet.
+        null
+    }
 
+    // commit(), not apply(): the ETag change must be on disk before the file
+    // changes. This runs on the background executor, never the main thread.
+    @SuppressLint("ApplySharedPref")
     override fun writeList(bytes: ByteArray, etag: String?) {
         // Order matters: a stored ETag must never describe a file other than
         // the stored one. If the process dies after the file is written but
@@ -96,6 +99,8 @@ class AndroidBlocklistStore(context: Context) : BlocklistStore {
 
     override fun etag(): String? = prefs.getString(KEY_ETAG, null)
 
+    // commit(), not apply(): the ETag is cleared on disk before anything relies on it.
+    @SuppressLint("ApplySharedPref")
     override fun clearEtag() {
         prefs.edit().remove(KEY_ETAG).commit()
     }
@@ -114,8 +119,7 @@ class AndroidBlocklistStore(context: Context) : BlocklistStore {
 
     override fun firstRunAt(): Long? = readLong(KEY_FIRST_RUN_AT)
 
-    private fun readLong(key: String): Long? =
-        if (prefs.contains(key)) prefs.getLong(key, 0L) else null
+    private fun readLong(key: String): Long? = if (prefs.contains(key)) prefs.getLong(key, 0L) else null
 
     private companion object {
         const val LIST_FILE = "blocklist.json"

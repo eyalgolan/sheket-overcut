@@ -29,7 +29,10 @@ class SheketApp : Application() {
 
     val repository: BlocklistRepository by lazy {
         BlocklistRepository(store) { assets.open(SEED_ASSET).use { it.readBytes() } }
-            .also { it.load(); logLoaded(it) }
+            .also {
+                it.load()
+                logLoaded(it)
+            }
     }
 
     val refresher: BlocklistRefresher by lazy { BlocklistRefresher(repository, store) }
