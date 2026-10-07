@@ -60,3 +60,119 @@ public enum ReportPolicy {
     /// every `.retryable` outcome. `.rejected` and `.sent` are never retried.
     public static let maxAttempts = 2
 }
+
+/// Builds the body of a report request (spec section 6.2).
+public enum ReportRequest {
+    /// The only platform this client sends.
+    private static let platform = "ios"
+    /// The backend's `MAX_TEXT_CHARS`. Python `len` counts code points, which
+    /// equals `unicodeScalars.count`.
+    private static let maxTextScalars = 1000
+    /// Maximum `app_version` length, as in the backend's `_APP_VERSION`.
+    private static let maxAppVersionScalars = 32
+
+    /// Returns the JSON body of a report, or the first failing field.
+    ///
+    /// The body has the keys `install_id`, `platform`, `kind`, `sender`,
+    /// `text` (only when non-nil) and `app_version`; `sender` is the
+    /// normalised form (spec section 6.2). Fields are checked in the order of
+    /// `_validate` in `backend/src/sheket/report.py`.
+    ///
+    /// There is no size check at run time: the backend's
+    /// `MAX_BODY_BYTES = 16384` always fits. The largest valid body (1,000
+    /// non-BMP scalars, 4 UTF-8 bytes each) is about 4.2 KB, and even if
+    /// escaped as `\uXXXX` surrogate pairs the text alone is 12,000 bytes. A
+    /// test pins this.
+    public static func make(
+        installID: String,
+        kind: ReportKind,
+        rawSender: String,
+        text: String?,
+        appVersion: String
+    ) -> Result<Data, ReportFieldError> {
+        guard isCanonicalInstallID(installID) else { return .failure(.installID) }
+
+        // platform (the constant "ios") and kind (typed `ReportKind`) sit here
+        // in the backend order and cannot fail.
+
+        guard let sender = SenderNormalizer.normalize(rawSender) else { return .failure(.sender) }
+        if kind == .call && !SenderNormalizer.isE164(sender) { return .failure(.sender) }
+        // `report.py` also rejects a sender (and a text) that fails
+        // `_is_utf8_encodable`, i.e. holds a lone surrogate. A Swift `String`
+        // cannot hold a lone surrogate, so that check has no client-side
+        // equivalent.
+
+        // An empty text is allowed for SMS. Text is sent exactly as given,
+        // not normalised or trimmed.
+        if let text {
+            if kind == .call {
+                // The backend rejects a call report that carries text with
+                // `400 {"error": "text"}`, its provisional answer to owner
+                // Decision 6.
+                return .failure(.text)
+            }
+            if text.unicodeScalars.count > maxTextScalars { return .failure(.text) }
+        }
+
+        guard isValidAppVersion(appVersion) else { return .failure(.appVersion) }
+
+        var body: [String: String] = [
+            "install_id": installID,
+            "platform": platform,
+            "kind": kind.rawValue,
+            "sender": sender,
+            "app_version": appVersion,
+        ]
+        if let text { body["text"] = text }
+        do {
+            return .success(try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys]))
+        } catch {
+            preconditionFailure("a [String: String] is always valid JSON: \(error)")
+        }
+    }
+
+    // MARK: - Private helpers
+
+    /// Mirrors `_parse_install_id` in `backend/src/sheket/report.py`: 36
+    /// characters in the canonical 8-4-4-4-12 form; braces, `urn:uuid:` and
+    /// the form without hyphens are rejected.
+    ///
+    /// Stricter on purpose: the backend lowercases an uppercase ID, while the
+    /// client must already send lowercase (#31 creates it with
+    /// `UUID().uuidString.lowercased()`). Foundation's `UUID(uuidString:)` is
+    /// not used because it accepts uppercase.
+    private static func isCanonicalInstallID(_ s: String) -> Bool {
+        let u = Array(s.unicodeScalars)
+        guard u.count == 36 else { return false }
+        for i in 0..<u.count {
+            switch i {
+            case 8, 13, 18, 23:
+                guard u[i] == "-" else { return false }
+            default:
+                switch u[i].value {
+                case 0x30...0x39, 0x61...0x66: // "0"..."9", "a"..."f"
+                    continue
+                default:
+                    return false
+                }
+            }
+        }
+        return true
+    }
+
+    /// The scalar-scan equivalent of
+    /// `_APP_VERSION.fullmatch(r"[0-9A-Za-z.+\-]{1,32}")`, so `"1.0.0\n"` and
+    /// `"1.0 beta"` fail.
+    private static func isValidAppVersion(_ s: String) -> Bool {
+        let u = s.unicodeScalars
+        return (1...maxAppVersionScalars).contains(u.count) && u.allSatisfy { scalar in
+            switch scalar.value {
+            case 0x30...0x39, 0x41...0x5A, 0x61...0x7A, // "0"..."9", "A"..."Z", "a"..."z"
+                 0x2E, 0x2B, 0x2D: // ".", "+", "-"
+                return true
+            default:
+                return false
+            }
+        }
+    }
+}
