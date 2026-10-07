@@ -64,6 +64,7 @@ class RefreshJobService : JobService() {
             scheduler.schedule(
                 JobInfo.Builder(JOB_ID, ComponentName(context, RefreshJobService::class.java))
                     .setPeriodic(REFRESH_PERIOD_MS, JobInfo.getMinFlexMillis())
+                    // Runs only when a network is available; needs ACCESS_NETWORK_STATE in the manifest.
                     .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
                     // Not persisted, so no RECEIVE_BOOT_COMPLETED permission is needed.
                     .setPersisted(false)
