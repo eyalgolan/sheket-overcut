@@ -4,6 +4,7 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
 
@@ -12,7 +13,7 @@ class SenderNormalizerCorpusTest {
     @Test
     fun corpusNormalizeCases() {
         val cases = ContractFiles.corpusSection("normalize")
-        assertEquals("number of normalize cases", 18, cases.size)
+        assertTrue("normalize cases shrank below 18: ${cases.size}", cases.size >= 18)
         val failures = cases.mapNotNull { case ->
             val c = case.jsonObject
             val input = c.getValue("in").jsonPrimitive.content

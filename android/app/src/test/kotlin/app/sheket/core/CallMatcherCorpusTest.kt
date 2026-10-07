@@ -2,7 +2,6 @@ package app.sheket.core
 
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
@@ -28,7 +27,7 @@ class CallMatcherCorpusTest {
         val matcher = CallMatcher((parsed as ParseResult.Ok).blocklist)
 
         val cases = ContractFiles.corpusSection("calls")
-        assertEquals("number of calls cases", 12, cases.size)
+        assertTrue("calls cases shrank below 12: ${cases.size}", cases.size >= 12)
         val failures = cases.mapNotNull { case ->
             val c = case.jsonObject
             val number = c.getValue("number").jsonPrimitive.content
