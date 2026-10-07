@@ -19,9 +19,9 @@ from pathlib import Path
 
 import pytest
 from botocore.exceptions import ClientError
+from conftest import BUCKET_NAME, TABLE_NAME, load_contract
 from jsonschema import ValidationError
 
-from conftest import BUCKET_NAME, TABLE_NAME, load_contract
 from sheket import aggregate, report
 from sheket.aggregate import (
     BLOCKLIST_KEY,
