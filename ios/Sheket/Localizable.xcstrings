@@ -24,13 +24,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Call blocking is off. Turn on Sheket under Call Blocking & Identification."
+            "value" : "Call blocking is off. Turn on SheketCallDirectory under Call Blocking & Identification."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "חסימת השיחות כבויה. יש להפעיל את Sheket תחת חסימת שיחות וזיהוי."
+            "value" : "חסימת השיחות כבויה. יש להפעיל את SheketCallDirectory תחת חסימת שיחות וזיהוי."
           }
         }
       }
@@ -92,13 +92,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Settings > Phone > Call Blocking & Identification > Sheket"
+            "value" : "Settings > Phone > Call Blocking & Identification > SheketCallDirectory"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "הגדרות > טלפון > חסימת שיחות וזיהוי > Sheket"
+            "value" : "הגדרות > טלפון > חסימת שיחות וזיהוי > SheketCallDirectory"
           }
         }
       }
@@ -109,13 +109,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Settings > Apps > Phone > Call Blocking & Identification > Sheket"
+            "value" : "Settings > Apps > Phone > Call Blocking & Identification > SheketCallDirectory"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "הגדרות > יישומים > טלפון > חסימת שיחות וזיהוי > Sheket"
+            "value" : "הגדרות > יישומים > טלפון > חסימת שיחות וזיהוי > SheketCallDirectory"
           }
         }
       }
@@ -313,13 +313,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "To move election SMS to Junk, turn on Sheket as the SMS filter here:"
+            "value" : "To move election SMS to Junk, turn on SheketMessageFilter as the SMS filter here:"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "כדי להעביר הודעות SMS של בחירות לזבל, יש להפעיל את Sheket כמסנן ההודעות כאן:"
+            "value" : "כדי להעביר הודעות SMS של בחירות לזבל, יש להפעיל את SheketMessageFilter כמסנן ההודעות כאן:"
           }
         }
       }
@@ -347,13 +347,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Settings > Messages > Unknown & Spam > Sheket"
+            "value" : "Settings > Messages > Unknown & Spam > SheketMessageFilter"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "הגדרות > הודעות > לא ידוע וספאם > Sheket"
+            "value" : "הגדרות > הודעות > לא ידוע וספאם > SheketMessageFilter"
           }
         }
       }
@@ -364,13 +364,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Settings > Apps > Messages > Unknown & Spam > Sheket"
+            "value" : "Settings > Apps > Messages > Unknown & Spam > SheketMessageFilter"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "הגדרות > יישומים > הודעות > לא ידוע וספאם > Sheket"
+            "value" : "הגדרות > יישומים > הודעות > לא ידוע וספאם > SheketMessageFilter"
           }
         }
       }
