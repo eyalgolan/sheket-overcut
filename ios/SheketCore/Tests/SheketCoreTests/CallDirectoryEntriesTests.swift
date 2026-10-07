@@ -62,7 +62,55 @@ final class CallDirectoryEntriesTests: XCTestCase {
         XCTAssertEqual(entries, [972_555_000_001, 972_555_000_003, 972_555_000_005])
     }
 
+    func testNonPositiveCapGivesNoEntries() {
+        let source = list(numbers: ["+972555001234"], prefixes: ["+97255501"])
+        XCTAssertEqual(CallDirectoryEntries.build(source, cap: 0), [])
+        XCTAssertEqual(CallDirectoryEntries.build(source, cap: -1), [])
+    }
+
+    func testCapAboveTotalKeepsEverything() {
+        let entries = CallDirectoryEntries.build(
+            list(numbers: ["+972555001234"], prefixes: ["+972555012"]),
+            cap: 1_002
+        )
+        XCTAssertEqual(entries.count, 1_001)
+        XCTAssertEqual(entries.first, 972_555_001_234)
+        XCTAssertEqual(entries.last, 972_555_012_999)
+    }
+
+    func testCapFillsPrefixesInDocumentOrder() {
+        // +97255502 is listed first, so it fills the cap even though its
+        // values sort after those of +97255501.
+        let source = list(prefixes: ["+97255502", "+97255501"])
+
+        let full = CallDirectoryEntries.build(source, cap: 10_000)
+        XCTAssertEqual(full.count, 10_000)
+        XCTAssertEqual(full.first, 972_555_020_000)
+        XCTAssertEqual(full.last, 972_555_029_999)
+
+        // Five spare slots go to the start of the second prefix, ascending.
+        let partial = CallDirectoryEntries.build(source, cap: 10_005)
+        XCTAssertEqual(partial.count, 10_005)
+        XCTAssertEqual(Array(partial.prefix(5)), (972_555_010_000...972_555_010_004).map { $0 })
+        XCTAssertEqual(partial.last, 972_555_029_999)
+    }
+
     // MARK: - Expansion
+
+    func testMalformedStringsAreIgnored() {
+        // Blocklist's public initialiser skips the decoder, so build must not
+        // crash or overflow on strings the decoder would reject.
+        let entries = CallDirectoryEntries.build(
+            list(
+                numbers: [
+                    "", "+", "972555001234", "+0555001234", "+97255500123a",
+                    " +972555001234", "+9725550012345678901", "+972555009876",
+                ],
+                prefixes: ["+097255501", "+97255501a", "97255501x", "+"]
+            )
+        )
+        XCTAssertEqual(entries, [972_555_009_876])
+    }
 
     func testOverlapsCountedOnce() {
         XCTAssertEqual(
@@ -110,6 +158,19 @@ final class CallDirectoryEntriesTests: XCTestCase {
 
     func testEncodeIsLittleEndian() {
         XCTAssertEqual(CallDirectoryEntries.encode([1]), Data([1, 0, 0, 0, 0, 0, 0, 0]))
+        XCTAssertEqual(CallDirectoryEntries.encode([0x0102_0304_0506_0708]),
+                       Data([8, 7, 6, 5, 4, 3, 2, 1]))
+        XCTAssertEqual(CallDirectoryEntries.encode([]), Data())
+    }
+
+    func testCorruptStopsAfterEarlierValues() {
+        // The extension must cancel its request on a throw, because body has
+        // already seen the values before the violation.
+        var read: [Int64] = []
+        XCTAssertThrowsError(
+            try CallDirectoryEntries.forEachEntry(in: CallDirectoryEntries.encode([1, 2, 2, 3])) { read.append($0) }
+        )
+        XCTAssertEqual(read, [1, 2])
     }
 
     func testUnalignedSlice() throws {
@@ -153,5 +214,26 @@ final class CallDirectoryEntriesTests: XCTestCase {
         XCTAssertFalse(CallDirectoryEntries.isBlocked("*2700", entries: [100, 2700]))
 
         XCTAssertTrue(CallDirectoryEntries.isBlocked("+972555001234", entries: entries))
+    }
+
+    func testBinarySearchEdges() {
+        let entries: [Int64] = [972_541_000_000, 972_551_234_567, 972_559_999_999]
+
+        XCTAssertFalse(CallDirectoryEntries.isBlocked("+972541000000", entries: []), "empty entries")
+        XCTAssertTrue(CallDirectoryEntries.isBlocked("+972541000000", entries: entries), "first entry")
+        XCTAssertTrue(CallDirectoryEntries.isBlocked("+972551234567", entries: entries), "middle entry")
+        XCTAssertTrue(CallDirectoryEntries.isBlocked("+972559999999", entries: entries), "last entry")
+        XCTAssertFalse(CallDirectoryEntries.isBlocked("+972540999999", entries: entries), "below the first")
+        XCTAssertFalse(CallDirectoryEntries.isBlocked("+972551234568", entries: entries), "between entries")
+        XCTAssertFalse(CallDirectoryEntries.isBlocked("+972560000000", entries: entries), "above the last")
+        XCTAssertTrue(CallDirectoryEntries.isBlocked("+972541000000", entries: [972_541_000_000]), "single entry")
+    }
+
+    func testNonIsraeliExactNumberIsMatched() {
+        // Exact call_numbers are not limited to +972; only prefix expansion is.
+        let entries = CallDirectoryEntries.build(list(numbers: ["+12125550100"], prefixes: ["+1212"]))
+        XCTAssertEqual(entries, [12_125_550_100])
+        XCTAssertTrue(CallDirectoryEntries.isBlocked("+1 (212) 555-0100", entries: entries))
+        XCTAssertFalse(CallDirectoryEntries.isBlocked("+12125550101", entries: entries))
     }
 }
