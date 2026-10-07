@@ -61,13 +61,15 @@ struct ReportView: View {
             }
 
             Section {
+                // A segmented picker does not reliably honour .disabled on one
+                // segment, so the whole picker is disabled while Call is not
+                // allowed. kindBinding still enforces the rule as a backstop.
                 Picker("report.kind.label", selection: kindBinding) {
                     Text("report.kind.sms").tag(ReportKind.sms)
-                    // A hint only; kindBinding is what enforces the rule.
                     Text("report.kind.call").tag(ReportKind.call)
-                        .disabled(!callAllowed)
                 }
                 .pickerStyle(.segmented)
+                .disabled(!callAllowed)
             } footer: {
                 if !callAllowed {
                     Text("report.kind.callUnavailable")
