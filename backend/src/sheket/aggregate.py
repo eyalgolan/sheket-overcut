@@ -1,4 +1,4 @@
-"""Pure blocklist builder for the aggregate Lambda.
+"""Blocklist builder and aggregate Lambda handler.
 
 The binding definition is spec section 6 (``docs/spec.md``): section 6.1
 defines the blocklist document, whose ``version`` only increases, and section
@@ -7,15 +7,44 @@ The structure follows design Phase 3 (the design comment on issue #1).
 ``contract/README.md`` (Schema notes) explains why ``date-time`` format
 checking needs the ``rfc3339-validator`` package.
 
-This module is pure: no AWS and no I/O. The Lambda handler that loads the
-reports and stores the blocklist is added in #6.
+The builder (``build_blocklist``, ``validate_blocklist``,
+``serialize_blocklist``) is pure: no AWS and no I/O. The Lambda handler, entry
+point ``sheket.aggregate.handler``, runs on a schedule. It reads the last
+7 days of reports and the ``OVERRIDE`` items from DynamoDB and the previous
+``v1/blocklist.json`` from S3, then builds -> validates -> serialises. It
+writes only when the content changed or the forced refresh is due, and prints
+one EMF ``AggregateSucceeded`` line per successful run. The contract files are
+loaded at call time from the packaged ``sheket/contract/`` next to this module
+(design Phase 3.3).
+
+Provisional values, named here in one place:
+
+- The 6-hour forced refresh (``FORCED_REFRESH``) is the design's provisional
+  answer to open owner Decision 5: whether apps measure "list more than 24
+  hours old" from ``generated_at`` or from their last successful check.
+  Android PR #42 measures from the last successful check; if that is
+  confirmed, drop it.
+
+Configuration comes from the environment, read at call time, never at import:
+
+- ``TABLE_NAME``: the DynamoDB table name.
+- ``BUCKET_NAME``: the S3 bucket holding ``v1/blocklist.json``.
+- ``MIN_INSTALLS``, ``MIN_NETWORKS``: the spec 6.3 publication thresholds,
+  wired by Terraform variables. Each must be a base-10 integer >= 1.
 """
 
 import json
 import logging
+import os
+import re
+import time
 from collections.abc import Iterable
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from typing import NamedTuple
 
+import boto3
+from botocore.exceptions import ClientError
 from jsonschema import Draft202012Validator, FormatChecker
 
 from sheket.normalize import is_e164, normalize_sender
@@ -25,7 +54,27 @@ WINDOW = timedelta(days=7)
 SCHEMA_VERSION = 1
 KINDS = ("call", "sms")
 
+BLOCKLIST_KEY = "v1/blocklist.json"
+CONTENT_TYPE = "application/json; charset=utf-8"
+# Spec 5: the CDN cache TTL is 5 minutes.
+CACHE_CONTROL = "public, max-age=300"
+OVERRIDE_PK = "OVERRIDE"
+# Packaged location (design 3.3). A module attribute so tests can point it at
+# the repository's contract/.
+CONTRACT_DIR = Path(__file__).parent / "contract"
+# Provisional answer to open owner Decision 5; remove together with the age
+# check in `_should_write` if apps measure staleness from their last
+# successful check.
+FORCED_REFRESH = timedelta(hours=6)
+# Use with fullmatch only: an anchoring "$" would accept a trailing newline.
+_THRESHOLD = re.compile(r"[0-9]+")
+
 logger = logging.getLogger(__name__)
+# The Lambda runtime's root logger level would otherwise hide INFO records.
+logger.setLevel(logging.INFO)
+
+_ddb_client = None
+_s3_client = None
 
 # Without rfc3339-validator, jsonschema silently skips the date-time check on
 # generated_at (contract/README.md, Schema notes). An explicit raise, not an
@@ -35,6 +84,84 @@ if "date-time" not in FormatChecker.checkers:
         "date-time format checking is unavailable: install rfc3339-validator "
         "(see contract/README.md, Schema notes)"
     )
+
+
+def _dynamodb():
+    """Return the DynamoDB client, created on first use.
+
+    The region comes from the environment. Tests reset ``_ddb_client`` to None.
+    """
+    global _ddb_client
+    if _ddb_client is None:
+        _ddb_client = boto3.client("dynamodb")
+    return _ddb_client
+
+
+def _s3():
+    """Return the S3 client, created on first use.
+
+    The region comes from the environment. Tests reset ``_s3_client`` to None.
+    """
+    global _s3_client
+    if _s3_client is None:
+        _s3_client = boto3.client("s3")
+    return _s3_client
+
+
+def _now() -> int:
+    """Return the current time in Unix seconds.
+
+    The single clock source for the module: called once per run, and patched
+    by tests.
+    """
+    return int(time.time())
+
+
+class _Config(NamedTuple):
+    table: str
+    bucket: str
+    min_installs: int
+    min_networks: int
+
+
+def _threshold(name: str) -> int:
+    """Return environment variable ``name`` as a base-10 integer >= 1.
+
+    Only ASCII digits are accepted (no sign, no whitespace, no underscores),
+    so a typo fails loudly instead of being coerced. A missing variable raises
+    KeyError; any other bad value raises ValueError naming the variable.
+    """
+    raw = os.environ[name]
+    if not _THRESHOLD.fullmatch(raw) or int(raw) < 1:
+        raise ValueError(f"{name} must be a base-10 integer >= 1")
+    return int(raw)
+
+
+def _config() -> _Config:
+    """Read the configuration from the environment on every call.
+
+    A missing variable raises KeyError and a bad threshold raises ValueError,
+    so the run fails loudly and the previous blocklist stays in place.
+    """
+    return _Config(
+        table=os.environ["TABLE_NAME"],
+        bucket=os.environ["BUCKET_NAME"],
+        min_installs=_threshold("MIN_INSTALLS"),
+        min_networks=_threshold("MIN_NETWORKS"),
+    )
+
+
+def _load_contract() -> tuple[dict, dict]:
+    """Load ``(curated, schema)`` from ``CONTRACT_DIR`` as UTF-8 JSON.
+
+    Read at call time, not at import, so tests can point ``CONTRACT_DIR`` at
+    the repository's ``contract/``.
+    """
+    curated = json.loads((CONTRACT_DIR / "curated.json").read_text(encoding="utf-8"))
+    schema = json.loads(
+        (CONTRACT_DIR / "blocklist.schema.json").read_text(encoding="utf-8")
+    )
+    return curated, schema
 
 
 def _parse_overrides(
