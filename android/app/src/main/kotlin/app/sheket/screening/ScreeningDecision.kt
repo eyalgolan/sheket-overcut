@@ -38,11 +38,7 @@ object ScreeningDecider {
      * in a cold process, also runs inside the guard: anything thrown, by the
      * supplier or by the decision itself, allows the call.
      */
-    fun decide(
-        scheme: String?,
-        schemeSpecificPart: String?,
-        matcher: () -> CallMatcher,
-    ): ScreeningDecision = try {
+    fun decide(scheme: String?, schemeSpecificPart: String?, matcher: () -> CallMatcher): ScreeningDecision = try {
         if (!"tel".equals(scheme, ignoreCase = true)) {
             ScreeningDecision.ALLOW
         } else {

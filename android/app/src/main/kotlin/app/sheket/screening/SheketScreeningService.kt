@@ -7,7 +7,7 @@ import app.sheket.BuildConfig
 import app.sheket.SheketApp
 
 /**
- * Screens incoming calls (#22, spec §4): a caller on the blocklist is rejected
+ * Screens incoming calls (#22, spec 4): a caller on the blocklist is rejected
  * before the phone rings.
  *
  * - `READ_CONTACTS` is not held, so Android asks this service only about

@@ -17,7 +17,7 @@ import java.util.concurrent.TimeUnit
  * ordering; the lock only guards against misuse from another thread.
  *
  * The file is app-private and excluded from backup by the manifest and
- * `data_extraction_rules` (spec §6.2); it never leaves the device.
+ * `data_extraction_rules` (spec 6.2); it never leaves the device.
  */
 class ScreenedCallLog(context: Context) {
 
