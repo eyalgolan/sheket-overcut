@@ -18,6 +18,11 @@ import java.nio.charset.CodingErrorAction
  *
  * [number] is the normalised caller number, or null when none was recorded;
  * [at] is the screening time in epoch milliseconds.
+ *
+ * [reported] records that this entry's number was reported while the entry
+ * existed (set by [ScreenedCallCodec.markReported]). Entries logged later keep
+ * `false`, so callers decide whether a number is reported through
+ * [ScreenedCallCodec.reportedNumbers], not this flag alone.
  */
 data class ScreenedCall(
     val id: String,
@@ -97,6 +102,14 @@ object ScreenedCallCodec {
     /** [entries] with `reported = true` on every entry whose number is [number]. */
     fun markReported(entries: List<ScreenedCall>, number: String): List<ScreenedCall> =
         entries.map { if (it.number == number) it.copy(reported = true) else it }
+
+    /**
+     * Numbers that count as reported: a number is reported if any entry with that
+     * number is reported, so entries logged after a report also count. This is the
+     * one definition used by the report client and the report screen.
+     */
+    fun reportedNumbers(entries: List<ScreenedCall>): Set<String> =
+        entries.filter { it.reported }.mapNotNull { it.number }.toSet()
 
     /** How many entries were blocked at or after [sinceMillis]. */
     fun countBlockedSince(entries: List<ScreenedCall>, sinceMillis: Long): Int =
