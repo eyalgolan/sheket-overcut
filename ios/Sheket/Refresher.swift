@@ -122,6 +122,7 @@ actor Refresher {
         guard let store else { return }
 
         var outcome: RefreshOutcome?
+        var handleThrew = false
         if let url = blocklistURL {
             let request = RefreshPolicy.request(url: url, etag: store.state()?.etag)
             var status: Int?
@@ -137,18 +138,27 @@ actor Refresher {
                 // Transport error or cancellation: everything stays nil and
                 // RefreshPolicy.handle reports .failed.
             }
-            outcome = try? RefreshPolicy.handle(
-                status: status,
-                body: body,
-                etag: etag,
-                store: store,
-                now: Date()
-            )
+            do {
+                outcome = try RefreshPolicy.handle(
+                    status: status,
+                    body: body,
+                    etag: etag,
+                    store: store,
+                    now: Date()
+                )
+            } catch {
+                // A store I/O error. It may come after a new list was
+                // already written (accept succeeded, recordSuccess threw),
+                // so the outcome is unknown.
+                handleThrew = true
+            }
         }
 
-        // Reload after a newly accepted list (REQ-4), and retry a reload
-        // that failed earlier (spec section 7).
-        if outcome == .accepted || store.state()?.lastReloadError != nil {
+        // Reload after a newly accepted list (REQ-4), after a store error
+        // that may have left a new list on disk (a reload is idempotent:
+        // the extension only reads call-directory.bin), and to retry a
+        // reload that failed earlier (spec section 7).
+        if outcome == .accepted || handleThrew || store.state()?.lastReloadError != nil {
             await reloadCallDirectory()
         }
     }
