@@ -65,3 +65,88 @@ resource "aws_cloudwatch_log_group" "aggregate" {
   name              = "/aws/lambda/${local.aggregate_name}"
   retention_in_days = 30
 }
+
+# The report handler needs only the standard library and boto3 (from the
+# runtime), so it takes no layer.
+resource "aws_lambda_function" "report" {
+  function_name    = local.report_name
+  role             = aws_iam_role.report.arn
+  handler          = "sheket.report.handler"
+  runtime          = "python3.13"
+  architectures    = ["arm64"]
+  filename         = data.archive_file.code.output_path
+  source_code_hash = data.archive_file.code.output_base64sha256
+
+  # Memory and timeout are provisional values from the design.
+  memory_size                    = 256
+  timeout                        = 5
+  reserved_concurrent_executions = 10
+
+  environment {
+    variables = {
+      TABLE_NAME   = aws_dynamodb_table.reports.name
+      IP_HASH_SALT = random_password.ip_hash_salt.result
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.report, aws_iam_role_policy.report]
+}
+
+resource "aws_lambda_function" "aggregate" {
+  function_name    = local.aggregate_name
+  role             = aws_iam_role.aggregate.arn
+  handler          = "sheket.aggregate.handler"
+  runtime          = "python3.13"
+  architectures    = ["arm64"]
+  filename         = data.archive_file.code.output_path
+  source_code_hash = data.archive_file.code.output_base64sha256
+  layers           = [aws_lambda_layer_version.runtime.arn]
+
+  # Memory and timeout are provisional values from the design.
+  memory_size                    = 512
+  timeout                        = 60
+  reserved_concurrent_executions = 1
+
+  environment {
+    variables = {
+      TABLE_NAME   = aws_dynamodb_table.reports.name
+      BUCKET_NAME  = aws_s3_bucket.blocklist.id
+      MIN_INSTALLS = tostring(var.min_installs)
+      MIN_NETWORKS = tostring(var.min_networks)
+    }
+  }
+
+  depends_on = [aws_cloudwatch_log_group.aggregate, aws_iam_role_policy.aggregate]
+}
+
+# A failed run is not retried; the next scheduled run rebuilds from scratch.
+resource "aws_lambda_function_event_invoke_config" "aggregate" {
+  function_name          = aws_lambda_function.aggregate.function_name
+  maximum_retry_attempts = 0
+}
+
+# Public endpoint (spec REQ-12); abuse controls live in the handler. No CORS
+# block: the clients are native apps, not browsers.
+resource "aws_lambda_function_url" "report" {
+  function_name      = aws_lambda_function.report.function_name
+  authorization_type = "NONE"
+  invoke_mode        = "BUFFERED"
+}
+
+# A public function URL needs both permissions: InvokeFunctionUrl and
+# InvokeFunction restricted to calls made through the function URL.
+resource "aws_lambda_permission" "report_url" {
+  statement_id           = "FunctionURLAllowPublicAccess"
+  action                 = "lambda:InvokeFunctionUrl"
+  function_name          = aws_lambda_function.report.function_name
+  principal              = "*"
+  function_url_auth_type = "NONE"
+}
+
+resource "aws_lambda_permission" "report_url_invoke" {
+  statement_id             = "FunctionURLAllowInvokeAction"
+  action                   = "lambda:InvokeFunction"
+  function_name            = aws_lambda_function.report.function_name
+  principal                = "*"
+  invoked_via_function_url = true
+}
