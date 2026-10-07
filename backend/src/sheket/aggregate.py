@@ -25,9 +25,9 @@ Provisional values, named here in one place:
   Android PR #42 measures from the last successful check; if that is
   confirmed, drop it.
 - The per-run report read cap (``MAX_REPORTS_PER_RUN``, ``READ_TIME_BUDGET``)
-  bounds memory and time under a report flood (issue #49). Day partitions are
-  read newest first, so a capped run keeps the newest reports and drops the
-  oldest.
+  bounds memory and time under a report flood (issue #49). Reports are read
+  newest first, across day partitions and within each one, so a capped run
+  keeps the newest reports and drops the oldest.
 
 Configuration comes from the environment, read at call time, never at import:
 
@@ -505,9 +505,11 @@ def _load_reports(table: str, now: int) -> Iterator[dict]:
 
     Reports are stored under ``pk = "R#YYYY-MM-DD"`` with ``sk`` starting with
     ``received_at`` (``sheket.report``). Every day from ``now``'s day back to
-    the cutoff's day is queried, newest first; the oldest partition, queried
-    last, is narrowed with ``sk >= cutoff`` (``now`` is whole seconds, so a report exactly at the
-    cutoff is included). This only limits the read: the builder's
+    the cutoff's day is queried, newest first, and each partition is read in
+    descending ``sk`` order (``ScanIndexForward=False``), so reports arrive
+    newest first overall. The oldest partition, queried last, is narrowed
+    with ``sk >= cutoff`` (``now`` is whole seconds, so a report exactly at
+    the cutoff is included). This only limits the read: the builder's
     ``received_at`` check stays the exact window filter and also drops
     reports dated after ``now``. Logs carry counts only, never item contents.
 
@@ -543,6 +545,7 @@ def _load_reports(table: str, now: int) -> Iterator[dict]:
             KeyConditionExpression=condition,
             ExpressionAttributeValues=values,
             ProjectionExpression="kind, sender, install_id, net_hash, received_at",
+            ScanIndexForward=False,
         ):
             elapsed = _monotonic() - start
             if read >= MAX_REPORTS_PER_RUN or elapsed >= READ_TIME_BUDGET:

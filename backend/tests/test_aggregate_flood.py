@@ -26,14 +26,18 @@ import pytest
 from conftest import BUCKET_NAME, TABLE_NAME, load_contract
 from test_aggregate_handler import (
     CALL,
+    NET_A,
+    NET_B,
     NOW,
     NOW_DT,
     SMS,
     SMS_NORMALISED,
     emf_lines,
+    install_id,
     published,
     put_group,
     put_override,
+    put_report,
     run,
 )
 
@@ -195,6 +199,28 @@ def test_uncapped_read_yields_every_item_newest_partition_first(
     assert stub.partitions == NEWEST_FIRST
     assert capped_messages(caplog) == []
     assert loaded_messages(caplog) == ["loaded 24 reports from 8 day partitions"]
+
+
+def test_reports_are_read_newest_first_within_a_partition(aws, mono):
+    ddb, _ = aws
+    put_report(ddb, "call", CALL, 0, NET_A, NOW_DT - timedelta(hours=2))
+    put_report(ddb, "call", CALL, 1, NET_B, NOW_DT - timedelta(hours=1))
+
+    items = list(aggregate._load_reports(TABLE_NAME, NOW))
+
+    assert [i["install_id"] for i in items] == [install_id(1), install_id(0)]
+
+
+def test_item_cap_keeps_the_newest_report_of_a_partition(aws, mono, monkeypatch):
+    ddb, _ = aws
+    put_report(ddb, "call", CALL, 0, NET_A, NOW_DT - timedelta(hours=2))
+    put_report(ddb, "call", CALL, 1, NET_B, NOW_DT - timedelta(hours=1))
+    monkeypatch.setattr(aggregate, "MAX_REPORTS_PER_RUN", 1)
+
+    (item,) = aggregate._load_reports(TABLE_NAME, NOW)
+
+    assert item["install_id"] == install_id(1)
+    assert item["received_at"] == "2026-10-06T11:00:00.000Z"
 
 
 # --- the item cap ---------------------------------------------------------------

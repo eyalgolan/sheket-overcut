@@ -419,6 +419,8 @@ def test_eight_day_partitions_are_queried_with_the_projection(recorder):
         assert q["ProjectionExpression"] == (
             "kind, sender, install_id, net_hash, received_at"
         )
+        # Newest first within each partition too.
+        assert q["ScanIndexForward"] is False
     # Only the oldest partition, queried last, is narrowed by the cutoff.
     assert report_queries[-1]["KeyConditionExpression"] == "pk = :pk AND sk >= :cut"
     assert report_queries[-1]["ExpressionAttributeValues"][":cut"] == {
