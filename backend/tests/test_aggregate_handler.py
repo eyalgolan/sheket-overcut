@@ -939,7 +939,7 @@ def test_list_order_change_is_a_write(curated):
         ("2026-10-06T06:00:00", True),
         ("2026-10-06T09:00:01+03:00", False),  # 06:00:01Z
         ("2026-10-06T09:00:00+03:00", True),
-        ("2026-10-06T13:00:00Z", False),  # in the future
+        ("2026-10-06T13:00:00Z", True),  # in the future: forces a refresh
     ],
 )
 def test_should_write_refresh_age(curated, generated_at, expected):
