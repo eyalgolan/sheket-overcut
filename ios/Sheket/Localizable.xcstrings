@@ -1,0 +1,397 @@
+{
+  "sourceLanguage" : "he",
+  "strings" : {
+    "app.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sheket"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שקט"
+          }
+        }
+      }
+    },
+    "status.callBlocking.disabled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Call blocking is off. Turn on SheketCallDirectory under Call Blocking & Identification."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חסימת השיחות כבויה. יש להפעיל את SheketCallDirectory תחת חסימת שיחות וזיהוי."
+          }
+        }
+      }
+    },
+    "status.callBlocking.enabled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Call blocking is on."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חסימת השיחות פועלת."
+          }
+        }
+      }
+    },
+    "status.callBlocking.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Call blocking"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חסימת שיחות"
+          }
+        }
+      }
+    },
+    "status.callBlocking.openSettings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Settings"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פתיחת ההגדרות"
+          }
+        }
+      }
+    },
+    "status.callBlocking.path.ios16" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings > Phone > Call Blocking & Identification > SheketCallDirectory"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הגדרות > טלפון > חסימת שיחות וזיהוי > SheketCallDirectory"
+          }
+        }
+      }
+    },
+    "status.callBlocking.path.ios18" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings > Apps > Phone > Call Blocking & Identification > SheketCallDirectory"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הגדרות > יישומים > טלפון > חסימת שיחות וזיהוי > SheketCallDirectory"
+          }
+        }
+      }
+    },
+    "status.callBlocking.reloadError %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Last call list update failed: %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "העדכון האחרון של רשימת השיחות נכשל: %@"
+          }
+        }
+      }
+    },
+    "status.callBlocking.unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Call blocking status is unavailable."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מצב חסימת השיחות אינו זמין."
+          }
+        }
+      }
+    },
+    "status.list.blockedEntries %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Blocked numbers: %lld"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מספרים חסומים: %lld"
+          }
+        }
+      }
+    },
+    "status.list.generatedAt %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List from: %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "רשימה מתאריך: %@"
+          }
+        }
+      }
+    },
+    "status.list.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Block list"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "רשימת חסימה"
+          }
+        }
+      }
+    },
+    "status.list.keywords %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Keywords: %lld"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מילות מפתח: %lld"
+          }
+        }
+      }
+    },
+    "status.list.none" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No list loaded."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא נטענה רשימה."
+          }
+        }
+      }
+    },
+    "status.list.numbers %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Numbers: %lld"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מספרים: %lld"
+          }
+        }
+      }
+    },
+    "status.list.stale" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The list has not been updated recently."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הרשימה לא עודכנה לאחרונה."
+          }
+        }
+      }
+    },
+    "status.refresh.disabled" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List updates are off: the list address is not configured."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "עדכוני הרשימה כבויים: כתובת הרשימה לא הוגדרה."
+          }
+        }
+      }
+    },
+    "status.sms.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SMS filter"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סינון SMS"
+          }
+        }
+      }
+    },
+    "status.sms.instructions" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To move election SMS to Junk, turn on SheketMessageFilter as the SMS filter here:"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כדי להעביר הודעות SMS של בחירות לזבל, יש להפעיל את SheketMessageFilter כמסנן ההודעות כאן:"
+          }
+        }
+      }
+    },
+    "status.sms.openSettings" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Open Settings"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פתיחת ההגדרות"
+          }
+        }
+      }
+    },
+    "status.sms.path.ios16" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings > Messages > Unknown & Spam > SheketMessageFilter"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הגדרות > הודעות > לא ידוע וספאם > SheketMessageFilter"
+          }
+        }
+      }
+    },
+    "status.sms.path.ios18" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Settings > Apps > Messages > Unknown & Spam > SheketMessageFilter"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הגדרות > יישומים > הודעות > לא ידוע וספאם > SheketMessageFilter"
+          }
+        }
+      }
+    },
+    "status.storage.unavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shared storage is unavailable."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "האחסון המשותף אינו זמין."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

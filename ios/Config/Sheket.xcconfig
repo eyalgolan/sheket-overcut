@@ -1,0 +1,26 @@
+// Base build configuration for the project-level Debug and Release configs.
+//
+// Every value committed here is a fake placeholder. Override locally in the
+// gitignored Sheket.local.xcconfig in this same directory. Never commit real
+// bundle IDs, app groups, team IDs or endpoints.
+
+SHEKET_BUNDLE_ID_PREFIX = org.example.sheket
+SHEKET_APP_GROUP = group.org.example.sheket
+DEVELOPMENT_TEAM =
+
+// In xcconfig files "//" starts a comment, so URLs use "/$()/" for the "//".
+SHEKET_BLOCKLIST_URL = https:/$()/blocklist.example.invalid/v1/blocklist.json
+SHEKET_REPORT_URL = https:/$()/report.example.invalid/v1/reports
+
+// MARKETING_VERSION must fully match the _APP_VERSION regex pattern in
+// backend/src/sheket/report.py, which validates a report's app_version.
+MARKETING_VERSION = 1.0.0
+
+// Shared target settings, kept here so the app and extensions cannot disagree.
+CURRENT_PROJECT_VERSION = 1
+IPHONEOS_DEPLOYMENT_TARGET = 16.0
+SWIFT_VERSION = 5.0
+TARGETED_DEVICE_FAMILY = 1
+CODE_SIGN_STYLE = Automatic
+
+#include? "Sheket.local.xcconfig"

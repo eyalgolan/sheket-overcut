@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Spec section 4: contacts are never requested. This strips READ_CONTACTS
+         even if a dependency merges it in. -->
+    <uses-permission
+        android:name="android.permission.READ_CONTACTS"
+        tools:node="remove" />
+
+    <application
+        android:name=".SheketApp"
+        android:allowBackup="false"
+        android:dataExtractionRules="@xml/data_extraction_rules"
+        android:supportsRtl="true"
+        tools:targetApi="31">
+
+        <!-- Spec section 7: the periodic blocklist refresh. BIND_JOB_SERVICE
+             lets only the system bind it. -->
+        <service
+            android:name=".data.RefreshJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!-- Spec section 4: the call screening service. BIND_SCREENING_SERVICE
+             lets only Telecom bind it. It is asked only about non-contacts,
+             because READ_CONTACTS is never held. -->
+        <service
+            android:name=".screening.SheketScreeningService"
+            android:exported="true"
+            android:permission="android.permission.BIND_SCREENING_SERVICE">
+            <intent-filter>
+                <action android:name="android.telecom.CallScreeningService" />
+            </intent-filter>
+        </service>
+
+    </application>
+
+</manifest>
