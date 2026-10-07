@@ -22,13 +22,22 @@ struct SheketApp: App {
         // capture self; Refresher is an actor and so Sendable.
         let refresher = refresher
         let status = status
+        let installID = installID
 
         WindowGroup {
-            // The single navigation root; #31 adds the Report and About
-            // entries here.
+            // The single navigation root. The toolbar opens the Report and
+            // About screens.
             NavigationStack {
                 StatusView(model: status)
                     .navigationTitle("app.title")
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarLeading) {
+                            NavigationLink("about.title") { AboutView() }
+                        }
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            NavigationLink("report.title") { ReportView(installID: installID) }
+                        }
+                    }
             }
             // Covers launch, when onChange may not fire for the first
             // .active. Refresher shares an in-flight run, so if both fire
