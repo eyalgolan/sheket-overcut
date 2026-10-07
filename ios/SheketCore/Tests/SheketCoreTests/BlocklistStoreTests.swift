@@ -344,4 +344,76 @@ final class BlocklistStoreTests: XCTestCase {
         XCTAssertEqual(snapshot(), [nil, nil, nil])
         XCTAssertNil(store.state())
     }
+
+    func testAcceptKeepsLastSuccessAt() throws {
+        XCTAssertEqual(try store.accept(Contract.data(Self.seedFile), etag: nil, now: t0), .accepted)
+        try store.recordSuccess(now: t0)
+
+        XCTAssertEqual(try store.accept(Contract.data(Self.testFile), etag: nil, now: t1), .accepted)
+
+        let state = try XCTUnwrap(store.state())
+        XCTAssertEqual(state.lastSuccessAt, t0, "accept must neither set nor drop lastSuccessAt")
+        XCTAssertEqual(state.firstRunAt, t0)
+    }
+
+    // MARK: - Shared file names and other readers
+
+    func testFileNameConstants() {
+        // The Message Filter and Call Directory extensions (#29) open these
+        // files by name.
+        XCTAssertEqual(BlocklistStore.blocklistFileName, "blocklist.json")
+        XCTAssertEqual(BlocklistStore.callDirectoryFileName, "call-directory.bin")
+    }
+
+    func testAnotherStoreOnTheSameDirectorySeesTheFiles() throws {
+        XCTAssertEqual(try store.accept(Contract.data(Self.testFile), etag: "x", now: t0), .accepted)
+
+        let other = BlocklistStore(directory: directory)
+        XCTAssertEqual(other.current(), try Contract.blocklist(Self.testFile))
+        XCTAssertEqual(other.state(), store.state())
+        XCTAssertEqual(try other.accept(Contract.data(Self.seedFile), etag: nil, now: t1), .ignoredNotNewer)
+    }
+
+    // MARK: - Unreadable files
+
+    func testCorruptListWithoutStateWritesNothing() throws {
+        try Data("{not json".utf8).write(to: url(BlocklistStore.blocklistFileName))
+        let before = snapshot()
+
+        XCTAssertNil(store.current())
+        XCTAssertNil(store.state())
+        XCTAssertFalse(try store.repairIfNeeded())
+        XCTAssertEqual(snapshot(), before)
+    }
+
+    func testRepairWithCorruptListClearsETagOnly() throws {
+        XCTAssertEqual(try store.accept(Contract.data(Self.seedFile), etag: "x", now: t0), .accepted)
+        try Data("{not json".utf8).write(to: url(BlocklistStore.blocklistFileName))
+        let entriesBefore = bytes(BlocklistStore.callDirectoryFileName)
+
+        XCTAssertFalse(try store.repairIfNeeded(), "there is no list to rebuild from")
+
+        let state = try stateOnDisk()
+        XCTAssertNil(state.etag)
+        XCTAssertEqual(state.version, Self.seedVersion)
+        XCTAssertEqual(state.firstRunAt, t0)
+        XCTAssertEqual(bytes(BlocklistStore.callDirectoryFileName), entriesBefore)
+    }
+
+    func testRepairUndecodableState() throws {
+        let testList = try Contract.blocklist(Self.testFile)
+        XCTAssertEqual(try store.accept(Contract.data(Self.testFile), etag: "x", now: t0), .accepted)
+        try Data("not json".utf8).write(to: url(Self.stateFileName))
+        XCTAssertNil(store.state())
+
+        XCTAssertTrue(try store.repairIfNeeded())
+
+        XCTAssertEqual(try storedEntries(), CallDirectoryEntries.build(testList))
+        let state = try XCTUnwrap(store.state())
+        XCTAssertEqual(state.version, Self.testVersion)
+        XCTAssertEqual(state.entriesVersion, Self.testVersion)
+        XCTAssertNil(state.etag, "an unreadable state has no ETag to keep")
+        XCTAssertNil(state.lastSuccessAt)
+        XCTAssertFalse(try store.repairIfNeeded())
+    }
 }

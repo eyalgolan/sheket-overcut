@@ -79,6 +79,13 @@ final class RefreshPolicyTests: XCTestCase {
         XCTAssertEqual(request.cachePolicy, .reloadIgnoringLocalCacheData)
     }
 
+    func testRequestSendsETagVerbatim() throws {
+        let etag = "W/\"5d8c-abc\""
+        let request = RefreshPolicy.request(url: try XCTUnwrap(url), etag: etag)
+        XCTAssertEqual(request.value(forHTTPHeaderField: "If-None-Match"), etag)
+        XCTAssertEqual(request.httpMethod ?? "GET", "GET")
+    }
+
     func testRequestWithEmptyETag() throws {
         let request = RefreshPolicy.request(url: try XCTUnwrap(url), etag: "")
         XCTAssertNil(request.value(forHTTPHeaderField: "If-None-Match"))
@@ -203,7 +210,76 @@ final class RefreshPolicyTests: XCTestCase {
         XCTAssertEqual(snapshot(), before)
     }
 
+    func testMaxBodyBytesIsFiveMiB() {
+        XCTAssertEqual(RefreshPolicy.maxBodyBytes, 5_242_880)
+    }
+
+    func testHandleBodyAtExactlyTheCapIsNotTooLarge() throws {
+        try acceptSeed()
+        let before = snapshot()
+        let body = Data(count: RefreshPolicy.maxBodyBytes)
+
+        let outcome = try RefreshPolicy.handle(status: 200, body: body, etag: "y", store: store, now: now)
+
+        // Reaches the decoder, which rejects the zero bytes.
+        XCTAssertEqual(outcome, .rejected(.invalid(field: "root")))
+        XCTAssertEqual(snapshot(), before)
+    }
+
+    func testHandleOversized304Failed() throws {
+        try acceptSeed()
+        let before = snapshot()
+        let body = Data(count: RefreshPolicy.maxBodyBytes + 1)
+
+        let outcome = try RefreshPolicy.handle(status: 304, body: body, etag: "x", store: store, now: now)
+
+        XCTAssertEqual(outcome, .failed, "the size check comes before the status")
+        XCTAssertEqual(snapshot(), before)
+    }
+
+    func testHandleOtherStatusesFailed() throws {
+        try acceptSeed()
+        let before = snapshot()
+        let test = try Contract.data(Self.testFile)
+
+        for status in [0, 100, 201, 204, 206, 301, 302, 400, 403, 404, 429, 503] {
+            let outcome = try RefreshPolicy.handle(status: status, body: test, etag: "y", store: store, now: now)
+            XCTAssertEqual(outcome, .failed, "status \(status)")
+            XCTAssertEqual(snapshot(), before, "status \(status)")
+        }
+    }
+
+    func testHandle304IntoEmptyStoreWritesNothing() throws {
+        let outcome = try RefreshPolicy.handle(status: 304, body: nil, etag: "x", store: store, now: now)
+
+        XCTAssertEqual(outcome, .notModified)
+        XCTAssertEqual(snapshot(), [nil, nil, nil])
+    }
+
+    func testHandle200InvalidIntoEmptyStoreWritesNothing() throws {
+        let outcome = try RefreshPolicy.handle(
+            status: 200, body: Data("[]".utf8), etag: "y", store: store, now: now
+        )
+
+        XCTAssertEqual(outcome, .rejected(.invalid(field: "root")))
+        XCTAssertEqual(snapshot(), [nil, nil, nil])
+    }
+
     // MARK: - AC-8: isStale
+
+    func testStalenessRestartsAt304() throws {
+        try acceptSeed()
+        XCTAssertEqual(
+            try RefreshPolicy.handle(status: 304, body: nil, etag: nil, store: store, now: now),
+            .notModified
+        )
+        let state = try XCTUnwrap(store.state())
+
+        // t0 + day + 1 would be stale from firstRunAt, but not from the 304.
+        XCTAssertFalse(RefreshPolicy.isStale(state: state, now: t0 + day + 1))
+        XCTAssertFalse(RefreshPolicy.isStale(state: state, now: now + day))
+        XCTAssertTrue(RefreshPolicy.isStale(state: state, now: now + day + 1))
+    }
 
     func testStaleAfter24HoursFromLastSuccess() {
         let state = BlocklistState(
