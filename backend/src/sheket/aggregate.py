@@ -70,6 +70,12 @@ CONTRACT_DIR = Path(__file__).parent / "contract"
 # check in `_should_write` if apps measure staleness from their last
 # successful check.
 FORCED_REFRESH = timedelta(hours=6)
+# The largest previous version whose `version + 1` still converts in
+# `_generated_at`: 253402300799 is 9999-12-31T23:59:59Z, the last second
+# `datetime` can represent.
+MAX_VERSION = (
+    int(datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc).timestamp()) - 1
+)
 # Most reports read per run (issue #49): about 100 IPv4 addresses x 60 reports
 # per hour x 168 hours in the window = 1.008M reports.
 MAX_REPORTS_PER_RUN = 1_000_000
@@ -576,10 +582,19 @@ def _load_previous(bucket: str) -> tuple[dict | None, int]:
     blocklist stays in place. An object that is not strict UTF-8 JSON holding
     an object, or an object whose ``version`` is not an integer >= 0, also
     gives ``(None, 0)``; both are logged with the reason only, never the
-    content. An unusable previous object therefore means the next run always
-    writes, so a malformed published document is replaced even when its
-    content compares equal, and ``version = max(now, previous_version + 1)``
-    still keeps the version increasing.
+    content. A whole-valued float ``version`` (e.g. ``9999999999.0``, valid
+    under the schema) counts as an integer and is returned as an ``int``. A
+    ``version`` above ``MAX_VERSION`` is also unusable (logged, giving
+    ``(None, 0)``), so the run writes a fresh list at version ``now`` instead
+    of failing every run in ``_generated_at``. An unusable previous object
+    therefore means the next run always writes, so a malformed published
+    document is replaced even when its content compares equal.
+
+    That write restarts the version at ``now``. If the stored version was
+    ahead of the clock (always the case above ``MAX_VERSION``), the published
+    version moves backwards, which departs from spec 6.1, and clients that
+    hold the higher version ignore every later list until they are reset by
+    hand.
     """
     try:
         response = _s3().get_object(Bucket=bucket, Key=BLOCKLIST_KEY)
@@ -603,12 +618,20 @@ def _load_previous(bucket: str) -> tuple[dict | None, int]:
         return None, 0
 
     version = doc.get("version")
-    if isinstance(version, int) and not isinstance(version, bool) and version >= 0:
-        return doc, version
-    logger.error(
-        "previous blocklist version invalid (type=%s); using 0", type(version).__name__
-    )
-    return None, 0
+    if isinstance(version, float) and version.is_integer() and version >= 0:
+        version = int(version)
+    if not isinstance(version, int) or isinstance(version, bool) or version < 0:
+        logger.error(
+            "previous blocklist version invalid (type=%s); using 0",
+            type(version).__name__,
+        )
+        return None, 0
+    if version > MAX_VERSION:
+        logger.error(
+            "previous blocklist version out of range (above %d); using 0", MAX_VERSION
+        )
+        return None, 0
+    return doc, version
 
 
 def _content(doc: dict) -> dict:
@@ -621,7 +644,13 @@ def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
 
     Always on the first run (or an unusable previous object) and whenever the
     content, everything except ``version`` and ``generated_at``, changed.
-    Unchanged content is rewritten only once the forced refresh is due.
+    Unchanged content is rewritten only once the forced refresh is due, or
+    when the previous ``generated_at`` is unreadable or later than the time of
+    ``new_doc["version"]``. That last write replaces it with a ``generated_at``
+    no later than the new version, so it happens at most once: when the
+    version itself is ahead of the clock, a ``generated_at`` that matches it
+    is still in the future, but rewriting cannot make it current, so the
+    content is left alone until the refresh is due.
     """
     if previous_doc is None or _content(new_doc) != _content(previous_doc):
         return True
@@ -629,7 +658,8 @@ def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
     # The only code that depends on open owner Decision 5 (provisional 6-hour
     # forced refresh, see FORCED_REFRESH). Dropping the refresh means deleting
     # FORCED_REFRESH and this age check; unchanged content is then never
-    # rewritten. An unreadable generated_at forces a write.
+    # rewritten. An unreadable generated_at, or one later than the new
+    # version's time, forces a write.
     generated = previous_doc.get("generated_at")
     if not isinstance(generated, str):
         return True
@@ -639,7 +669,13 @@ def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
         return True
     if generated_at.tzinfo is None:
         generated_at = generated_at.replace(tzinfo=timezone.utc)
-    return datetime.fromtimestamp(now, timezone.utc) - generated_at >= FORCED_REFRESH
+    if generated_at > datetime.fromtimestamp(new_doc["version"], timezone.utc):
+        logger.warning(
+            "previous generated_at is later than the new version; forcing refresh"
+        )
+        return True
+    age = datetime.fromtimestamp(now, timezone.utc) - generated_at
+    return age >= FORCED_REFRESH
 
 
 def _emit_success(written: bool, doc: dict) -> None:

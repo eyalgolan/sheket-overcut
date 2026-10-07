@@ -13,7 +13,9 @@ import javax.xml.parsers.DocumentBuilderFactory
  * Static checks on the UI resources and manifest entries of #23 (AC-3, REQ-4)
  * and the report screen of #24 (REQ-5):
  * every user-visible string is a resource in both English and Hebrew, layouts
- * hold no hard-coded text, and the layouts are right-to-left safe. The files
+ * hold no hard-coded text, and the layouts are right-to-left safe. Activity
+ * layouts also apply the window insets at their root, so on API 35+ no screen
+ * draws under the action bar (#52). The files
  * are read as XML from `src/main` (the `sheket.mainSrcDir` system property),
  * since JVM unit tests have no merged Android resources.
  */
@@ -253,6 +255,69 @@ class UiResourcesTest {
     }
 
     @Test
+    fun everyActivityLayoutIsScannedForInsets() {
+        // Guards the inset tests below against passing on an empty scan.
+        assertEquals(
+            setOf("activity_about", "activity_report", "activity_status"),
+            contentViewLayouts().map { it.second }.toSet(),
+        )
+    }
+
+    @Test
+    fun activityLayoutRootsFitSystemWindows() {
+        // On API 35+ the app is edge-to-edge (targetSdk 36) and the platform
+        // action bar overlays the content view, passing its height on as a top
+        // inset (#52). The root of each activity's content view must apply the
+        // insets, or the first element is drawn under the action bar.
+        val problems = mutableListOf<String>()
+        for ((source, layout) in contentViewLayouts()) {
+            val root = parse(File(resDir, "layout/$layout.xml")).documentElement
+            val fits = root.getAttributeNS(ANDROID_NS, "fitsSystemWindows")
+            if (fits != "true") problems += "$source: $layout.xml root <${root.tagName}> fitsSystemWindows=\"$fits\""
+        }
+        if (problems.isNotEmpty()) fail("activity roots without window insets:\n" + problems.joinToString("\n"))
+    }
+
+    @Test
+    fun insetRootsKeepTheirGutterOnTheChild() {
+        // fitsSystemWindows replaces the root's own padding with the insets,
+        // so the 16dp gutter must sit on the single child, inside the insets.
+        val problems = mutableListOf<String>()
+        for ((_, layout) in contentViewLayouts()) {
+            val root = parse(File(resDir, "layout/$layout.xml")).documentElement
+            PADDING_ATTRS.filter { root.hasAttributeNS(ANDROID_NS, it) }.forEach {
+                problems += "$layout.xml: root <${root.tagName}> sets android:$it, which the insets overwrite"
+            }
+            val children = childElements(root)
+            if (children.size != 1) {
+                problems += "$layout.xml: root <${root.tagName}> has ${children.size} child views, expected 1"
+                continue
+            }
+            val padding = children.single().getAttributeNS(ANDROID_NS, "padding")
+            if (padding != "16dp") problems += "$layout.xml: root's child padding=\"$padding\", expected 16dp"
+        }
+        if (problems.isNotEmpty()) fail(problems.joinToString("\n"))
+    }
+
+    @Test
+    fun onlyActivityRootsFitSystemWindows() {
+        // A second fitsSystemWindows below the root, or on a list row, would
+        // never see the consumed insets or would pad every row by them.
+        val roots = contentViewLayouts().map { "${it.second}.xml" }.toSet()
+        val problems = mutableListOf<String>()
+        for (file in layouts) {
+            val doc = parse(file)
+            forEachElement(doc) { el ->
+                val isActivityRoot = file.name in roots && el === doc.documentElement
+                if (!isActivityRoot && el.hasAttributeNS(ANDROID_NS, "fitsSystemWindows")) {
+                    problems += "${file.name}: <${el.tagName}> android:fitsSystemWindows"
+                }
+            }
+        }
+        if (problems.isNotEmpty()) fail("fitsSystemWindows outside an activity root:\n" + problems.joinToString("\n"))
+    }
+
+    @Test
     fun launcherIconIsAdaptiveVector() {
         val icon = parse(File(resDir, "mipmap-anydpi/ic_launcher.xml"))
         assertEquals("adaptive-icon", icon.documentElement.tagName)
@@ -275,6 +340,20 @@ class UiResourcesTest {
         val codeFiles = File(mainDir, "kotlin").walkTopDown().filter { it.isFile && it.extension == "kt" }
         return xmlFiles.flatMap { f -> xmlRef.findAll(f.readText()).map { f.name to it.groupValues[1] } }.toList() +
             codeFiles.flatMap { f -> codeRef.findAll(f.readText()).map { f.name to it.groupValues[1] } }.toList()
+    }
+
+    /** `(source file, layout name)` for every `setContentView(R.layout.x)` in the Kotlin sources. */
+    private fun contentViewLayouts(): List<Pair<String, String>> {
+        val ref = Regex("\\bsetContentView\\(\\s*R\\.layout\\.([A-Za-z0-9_]+)\\s*\\)")
+        return File(mainDir, "kotlin").walkTopDown().filter { it.isFile && it.extension == "kt" }
+            .flatMap { f -> ref.findAll(f.readText()).map { f.name to it.groupValues[1] } }
+            .sortedBy { it.second }
+            .toList()
+    }
+
+    private fun childElements(parent: Element): List<Element> {
+        val nodes = parent.childNodes
+        return (0 until nodes.length).map { nodes.item(it) }.filterIsInstance<Element>()
     }
 
     /** The elements of [file] that have an `android:id`, keyed by the id name. */
@@ -328,5 +407,9 @@ class UiResourcesTest {
         val FORMAT_ARG = Regex("%(?:\\d+\\$)?[-#+ 0,(]*\\d*(?:\\.\\d+)?[a-zA-Z%]")
         val POSITIONAL_ARG = Regex("%\\d+\\$[a-zA-Z]")
         val LEFT_RIGHT = Regex("\\b(left|right)\\b")
+        val PADDING_ATTRS = listOf(
+            "padding", "paddingTop", "paddingBottom", "paddingStart", "paddingEnd",
+            "paddingHorizontal", "paddingVertical", "paddingLeft", "paddingRight",
+        )
     }
 }
