@@ -66,6 +66,9 @@ CONTRACT_DIR = Path(__file__).parent / "contract"
 # check in `_should_write` if apps measure staleness from their last
 # successful check.
 FORCED_REFRESH = timedelta(hours=6)
+# EMF heartbeat (`_emit_success`); the stale-list alarm (#8) watches it.
+METRIC_NAMESPACE = "Sheket"
+FUNCTION_NAME = "aggregate"
 # Use with fullmatch only: an anchoring "$" would accept a trailing newline.
 _THRESHOLD = re.compile(r"[0-9]+")
 
@@ -582,6 +585,36 @@ def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
     return datetime.fromtimestamp(now, timezone.utc) - generated_at >= FORCED_REFRESH
 
 
+def _emit_success(written: bool, doc: dict) -> None:
+    """Print one CloudWatch Embedded Metric Format ``AggregateSucceeded`` line.
+
+    The metric is ``AggregateSucceeded = 1`` in namespace ``Sheket`` with the
+    dimension ``Function = aggregate``; ``written``, ``call_numbers`` and
+    ``sms_senders`` are plain properties (not metrics) for the audit trail.
+    ``print``, not the logger: EMF needs the raw single-line JSON on stdout.
+    Not emitted when the run raises, so the stale-list alarm (#8) sees a
+    missing heartbeat.
+    """
+    payload = {
+        "_aws": {
+            "Timestamp": int(time.time() * 1000),
+            "CloudWatchMetrics": [
+                {
+                    "Namespace": METRIC_NAMESPACE,
+                    "Dimensions": [["Function"]],
+                    "Metrics": [{"Name": "AggregateSucceeded", "Unit": "Count"}],
+                }
+            ],
+        },
+        "Function": FUNCTION_NAME,
+        "AggregateSucceeded": 1,
+        "written": written,
+        "call_numbers": len(doc["call_numbers"]),
+        "sms_senders": len(doc["sms_senders"]),
+    }
+    print(json.dumps(payload, separators=(",", ":")))
+
+
 def handler(event, context) -> None:
     """Aggregate Lambda entry point; ``event`` and ``context`` are unused.
 
@@ -632,3 +665,4 @@ def handler(event, context) -> None:
         len(doc["call_numbers"]),
         len(doc["sms_senders"]),
     )
+    _emit_success(written, doc)
