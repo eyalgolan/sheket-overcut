@@ -28,12 +28,21 @@ data "aws_iam_policy_document" "report" {
 
   # The handler writes via TransactWriteItems (one Update per rate-limit
   # counter, one Put for the report), which is authorised per item as
-  # PutItem/UpdateItem.
+  # PutItem/UpdateItem. It writes only R#<day> report items and RL#...
+  # rate-limit counters (_report_item and _transact_items in
+  # backend/src/sheket/report.py); the LeadingKeys condition keeps this
+  # internet-facing function out of the OVERRIDE partition.
   statement {
     sid       = "WriteReports"
     effect    = "Allow"
     actions   = ["dynamodb:PutItem", "dynamodb:UpdateItem"]
     resources = [aws_dynamodb_table.reports.arn]
+
+    condition {
+      test     = "ForAllValues:StringLike"
+      variable = "dynamodb:LeadingKeys"
+      values   = ["R#*", "RL#*"]
+    }
   }
 }
 

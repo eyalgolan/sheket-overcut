@@ -243,6 +243,21 @@ run "report_role_has_inline_least_privilege_policy" {
     condition     = data.aws_iam_policy_document.report.statement[1].resources == toset(["arn:aws:dynamodb:us-east-1:123456789012:table/reports"])
     error_message = "The report role's DynamoDB access must be limited to the reports table."
   }
+
+  assert {
+    condition     = one(data.aws_iam_policy_document.report.statement[1].condition).test == "ForAllValues:StringLike"
+    error_message = "The report role's DynamoDB writes must use a ForAllValues:StringLike condition."
+  }
+
+  assert {
+    condition     = one(data.aws_iam_policy_document.report.statement[1].condition).variable == "dynamodb:LeadingKeys"
+    error_message = "The report role's DynamoDB writes must be conditioned on dynamodb:LeadingKeys."
+  }
+
+  assert {
+    condition     = one(data.aws_iam_policy_document.report.statement[1].condition).values == tolist(["R#*", "RL#*"])
+    error_message = "The report role may only write R# and RL# partition keys, never OVERRIDE."
+  }
 }
 
 run "aggregate_role_has_inline_least_privilege_policy" {

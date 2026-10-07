@@ -775,6 +775,127 @@ def test_version_stays_increasing_when_the_previous_is_ahead_of_the_clock(aws, c
     assert published(s3)["version"] == NOW + 501
 
 
+# #50 (1): a whole-valued float version is valid under the schema and must keep
+# the version increasing instead of being treated as absent.
+
+
+def test_whole_valued_float_previous_version_keeps_the_version_increasing(
+    aws, caplog, schema
+):
+    _, s3 = aws
+    put_previous(s3, b'{"version": 9999999999.0}')
+    caplog.set_level(logging.INFO, logger="sheket.aggregate")
+
+    run()
+
+    doc = published(s3)
+    validate_blocklist(doc, schema)
+    assert doc["version"] == 9999999999 + 1
+    assert type(doc["version"]) is int
+    assert b'"version": 10000000000,' in published_bytes(s3)  # an int, no ".0"
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+
+def test_whole_valued_float_previous_version_is_read_as_an_int(aws, curated, caplog):
+    _, s3 = aws
+    previous = build_blocklist(curated, [], [], NOW - 60, 0, 3, 2)
+    body = serialize_blocklist(previous).replace(
+        f'"version": {NOW - 60},', f'"version": {NOW - 60}.0,'
+    )
+    assert f'"version": {NOW - 60}.0,' in body
+    put_previous(s3, body)
+    caplog.set_level(logging.INFO, logger="sheket.aggregate")
+
+    run()
+
+    # Unchanged content inside the refresh window: not rewritten, and the
+    # previous version is logged as the integer it is.
+    assert published_bytes(s3) == body.encode("utf-8")
+    assert f"blocklist unchanged: version={NOW - 60} " in caplog.text
+
+
+@pytest.mark.parametrize(
+    "raw", [b"NaN", b"Infinity", b"-Infinity", b"-1.0", b"0.5"], ids=bytes.decode
+)
+def test_non_integral_or_negative_float_previous_version_is_unusable(aws, caplog, raw):
+    _, s3 = aws
+    put_previous(s3, b'{"version": ' + raw + b"}")
+    caplog.set_level(logging.INFO, logger="sheket.aggregate")
+
+    run()
+
+    assert published(s3)["version"] == NOW
+    errors = [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR]
+    assert errors == ["previous blocklist version invalid (type=float); using 0"]
+
+
+def test_load_previous_returns_an_int_for_a_whole_valued_float(aws):
+    _, s3 = aws
+    put_previous(s3, b'{"version": 1791201600.0}')
+    doc, version = aggregate._load_previous(BUCKET_NAME)
+    assert version == 1791201600
+    assert type(version) is int
+    assert doc == {"version": 1791201600.0}
+
+
+# #50 (2): a previous version too large for `datetime` must not fail every run.
+
+
+def test_max_version_is_the_last_one_whose_successor_is_a_date():
+    assert aggregate.MAX_VERSION == 253402300798
+    assert aggregate._generated_at(aggregate.MAX_VERSION + 1) == "9999-12-31T23:59:59Z"
+    with pytest.raises(ValueError):
+        aggregate._generated_at(aggregate.MAX_VERSION + 2)
+
+
+@pytest.mark.parametrize(
+    "raw",
+    [b"253402300799", b"253402300800", b"100000000000000000000", b"1e300"],
+    ids=bytes.decode,
+)
+def test_out_of_range_previous_version_is_logged_and_replaced(aws, caplog, schema, raw):
+    _, s3 = aws
+    put_previous(s3, b'{"version": ' + raw + b"}")
+    caplog.set_level(logging.INFO, logger="sheket.aggregate")
+
+    run()  # does not raise
+
+    doc = published(s3)
+    validate_blocklist(doc, schema)
+    assert doc["version"] == NOW
+    assert doc["generated_at"] == "2026-10-06T12:00:00Z"
+    errors = [r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR]
+    assert errors == [
+        "previous blocklist version out of range (above 253402300798); using 0"
+    ]
+
+
+def test_out_of_range_previous_version_recovers_on_the_next_run(aws, clock):
+    ddb, s3 = aws
+    put_previous(s3, b'{"version": 253402300800}')
+    run()
+    assert published(s3)["version"] == NOW
+
+    clock.now = NOW + 60
+    put_override(ddb, "force_block#sms#SpamCo")
+    run()
+    assert published(s3)["version"] == NOW + 60
+
+
+def test_previous_version_at_max_version_is_still_accepted(aws, caplog, schema):
+    _, s3 = aws
+    put_previous(s3, b'{"version": 253402300798}')
+    caplog.set_level(logging.INFO, logger="sheket.aggregate")
+
+    run()
+
+    doc = published(s3)
+    validate_blocklist(doc, schema)
+    assert doc["version"] == 253402300799
+    assert doc["generated_at"] == "9999-12-31T23:59:59Z"
+    assert not [r for r in caplog.records if r.levelno >= logging.ERROR]
+
+
 # --- AC-4: conditional write ---------------------------------------------------
 
 
@@ -883,6 +1004,97 @@ def test_unreadable_previous_generated_at_forces_a_write(aws, curated, generated
     assert published(s3)["version"] == NOW
 
 
+# #50 (3): a future generated_at must not stop the forced refresh, and the
+# forced write must not repeat on every run (review: rewrite loop).
+
+FUTURE_WARNING = "previous generated_at is later than the new version; forcing refresh"
+
+
+@pytest.mark.parametrize("ahead", [1, 3600, 365 * 86400])
+def test_future_previous_generated_at_forces_a_write(aws, curated, caplog, ahead):
+    _, s3 = aws
+    previous = build_blocklist(curated, [], [], NOW - 60, 0, 3, 2)
+    previous["generated_at"] = aggregate._generated_at(NOW + ahead)
+    put_previous(s3, previous)
+    caplog.set_level(logging.INFO, logger="sheket.aggregate")
+
+    run()
+
+    doc = published(s3)
+    assert doc["version"] == NOW
+    assert doc["generated_at"] == "2026-10-06T12:00:00Z"
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert [r.getMessage() for r in warnings] == [FUTURE_WARNING]
+
+
+def _warnings(caplog):
+    return [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+
+
+def test_previous_ahead_of_the_clock_with_unchanged_content_is_not_rewritten(
+    aws, curated, clock, caplog
+):
+    # Version and its matching generated_at both in the future, content
+    # unchanged: a rewrite cannot make generated_at current, so nothing is
+    # written (no rewrite loop) until the normal refresh is due.
+    _, s3 = aws
+    put_previous(s3, build_blocklist(curated, [], [], NOW + 500, 0, 3, 2))
+    caplog.set_level(logging.INFO, logger="sheket.aggregate")
+
+    run()
+    assert published(s3)["version"] == NOW + 500
+    assert _warnings(caplog) == []
+
+    clock.now = NOW + 900
+    run()
+    assert published(s3)["version"] == NOW + 500
+    assert _warnings(caplog) == []
+
+    clock.now = NOW + 500 + int(FORCED_REFRESH.total_seconds())
+    run()
+    doc = published(s3)
+    assert doc["version"] == clock.now
+    assert doc["generated_at"] == aggregate._generated_at(clock.now)
+    assert _warnings(caplog) == []
+
+
+def test_generated_at_later_than_an_ahead_version_is_rewritten_once(
+    aws, curated, clock, caplog
+):
+    # The version is ahead of the clock and generated_at is later still: one
+    # forced write repairs generated_at, and the next run does not write again.
+    _, s3 = aws
+    previous = build_blocklist(curated, [], [], NOW + 500, 0, 3, 2)
+    previous["generated_at"] = aggregate._generated_at(NOW + 365 * 86400)
+    put_previous(s3, previous)
+    caplog.set_level(logging.INFO, logger="sheket.aggregate")
+
+    run()
+    doc = published(s3)
+    assert doc["version"] == NOW + 501
+    assert doc["generated_at"] == aggregate._generated_at(NOW + 501)
+    assert _warnings(caplog) == [FUTURE_WARNING]
+
+    caplog.clear()
+    clock.now = NOW + 900
+    run()
+    assert published(s3)["version"] == NOW + 501
+    assert _warnings(caplog) == []
+
+
+def test_generated_at_equal_to_now_is_not_a_refresh(aws, curated, caplog):
+    _, s3 = aws
+    previous = build_blocklist(curated, [], [], NOW - 60, 0, 3, 2)
+    previous["generated_at"] = aggregate._generated_at(NOW)
+    put_previous(s3, previous)
+    caplog.set_level(logging.INFO, logger="sheket.aggregate")
+
+    run()
+
+    assert published(s3)["version"] == NOW - 60  # not rewritten
+    assert not [r for r in caplog.records if r.levelno == logging.WARNING]
+
+
 # --- _should_write and _content units ------------------------------------------
 
 
@@ -939,7 +1151,7 @@ def test_list_order_change_is_a_write(curated):
         ("2026-10-06T06:00:00", True),
         ("2026-10-06T09:00:01+03:00", False),  # 06:00:01Z
         ("2026-10-06T09:00:00+03:00", True),
-        ("2026-10-06T13:00:00Z", False),  # in the future
+        ("2026-10-06T13:00:00Z", True),  # in the future: forces a refresh
     ],
 )
 def test_should_write_refresh_age(curated, generated_at, expected):
@@ -947,6 +1159,13 @@ def test_should_write_refresh_age(curated, generated_at, expected):
     previous = copy.deepcopy(new)
     previous["generated_at"] = generated_at
     assert aggregate._should_write(new, previous, NOW) is expected
+
+
+def test_should_write_skips_a_consistent_previous_ahead_of_the_clock(curated):
+    # previous at NOW+500 with its own generated_at; the new doc is NOW+501.
+    previous = _doc(curated, NOW + 500)
+    new = _doc(curated, NOW + 501)
+    assert aggregate._should_write(new, previous, NOW) is False
 
 
 # --- AC-5: object metadata and body --------------------------------------------
