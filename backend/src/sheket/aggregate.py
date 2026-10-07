@@ -519,8 +519,10 @@ def _load_previous(bucket: str) -> tuple[dict | None, int]:
     blocklist stays in place. An object that is not strict UTF-8 JSON holding
     an object, or an object whose ``version`` is not an integer >= 0, also
     gives ``(None, 0)``; both are logged with the reason only, never the
-    content. An unusable previous object therefore means the next run always
-    writes, so a malformed published document is replaced even when its
+    content. A whole-valued float ``version`` (e.g. ``9999999999.0``, valid
+    under the schema) counts as an integer and is returned as an ``int``. An
+    unusable previous object therefore means the next run always writes, so a
+    malformed published document is replaced even when its
     content compares equal, and ``version = max(now, previous_version + 1)``
     still keeps the version increasing.
     """
@@ -548,6 +550,8 @@ def _load_previous(bucket: str) -> tuple[dict | None, int]:
     version = doc.get("version")
     if isinstance(version, int) and not isinstance(version, bool) and version >= 0:
         return doc, version
+    if isinstance(version, float) and version.is_integer() and version >= 0:
+        return doc, int(version)
     logger.error(
         "previous blocklist version invalid (type=%s); using 0", type(version).__name__
     )
