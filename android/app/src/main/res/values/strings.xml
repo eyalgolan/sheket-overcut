@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Sheket</string>
+    <string name="status_title">Status</string>
+
+    <string name="role_on">Call screening is on. Sheket is your Caller ID &amp; spam app.</string>
+    <string name="role_off">Call screening is off. Turn on Sheket in Settings › Apps › Default apps › Caller ID &amp; spam app.</string>
+    <string name="role_request_button">Turn on call screening</string>
+    <string name="role_settings_button">Open default apps settings</string>
+    <string name="role_unavailable">Call screening is not available on this device.</string>
+
+    <string name="list_generated_at">List generated: %1$s</string>
+    <string name="list_counts">Numbers: %1$d · Prefixes: %2$d</string>
+    <string name="list_source_seed">Source: the list bundled with the app</string>
+    <string name="list_source_downloaded">Source: the downloaded list</string>
+    <string name="list_none">No list loaded.</string>
+
+    <string name="stale_last_updated">Last updated: %1$s</string>
+    <string name="stale_never_updated">The list has not been updated yet.</string>
+
+    <string name="blocked_last_7_days">Calls blocked in the last 7 days: %1$d</string>
+
+    <string name="about_button">About and privacy</string>
+
+    <string name="about_title">About Sheket</string>
+    <string name="about_what">Sheket blocks election spam calls before they ring. It checks each incoming call against a list of numbers kept on your phone, so no network is used during a call. The list is built from user reports: a number is added only after at least 3 different installs on at least 2 different networks report it. The app downloads the latest list from the internet.</string>
+    <string name="about_contacts">Calls from your contacts are never screened. Sheket does not ask for access to your contacts, so Android only asks it about callers who are not in them.</string>
+    <string name="about_report_sends">When you report a call, Sheket sends only: a random install ID created when the app was first opened (not linked to you, your phone number or your advertising ID), the platform (Android), the report type (call), the reported number, and the app version.</string>
+    <string name="about_report_never_sends">A report never includes your contacts, call audio, message text or your location.</string>
+    <string name="about_retention">Reports are deleted after 30 days. Your IP address is not stored; only a salted hash of its network block is kept, and it is also deleted after 30 days.</string>
+    <string name="about_version">Version: %1$s</string>
+    <string name="about_privacy_placeholder">[Placeholder] The privacy notice will appear here once the owner and a lawyer have supplied the wording.</string>
+</resources>
