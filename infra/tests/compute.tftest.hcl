@@ -548,7 +548,7 @@ run "salt_comes_from_random_password" {
   }
 }
 
-run "function_url_is_public_with_both_permissions" {
+run "function_url_is_public_with_invoke_permission" {
   command = plan
 
   assert {
@@ -572,21 +572,6 @@ run "function_url_is_public_with_both_permissions" {
   }
 
   assert {
-    condition     = aws_lambda_permission.report_url.action == "lambda:InvokeFunctionUrl"
-    error_message = "The first permission must grant lambda:InvokeFunctionUrl."
-  }
-
-  assert {
-    condition     = aws_lambda_permission.report_url.principal == "*" && aws_lambda_permission.report_url.function_url_auth_type == "NONE"
-    error_message = "lambda:InvokeFunctionUrl must be granted to * for auth type NONE."
-  }
-
-  assert {
-    condition     = aws_lambda_permission.report_url.function_name == "sheket-report"
-    error_message = "The InvokeFunctionUrl permission must target the report function."
-  }
-
-  assert {
     condition     = aws_lambda_permission.report_url_invoke.action == "lambda:InvokeFunction"
     error_message = "The second permission must grant lambda:InvokeFunction."
   }
@@ -604,6 +589,60 @@ run "function_url_is_public_with_both_permissions" {
   assert {
     condition     = output.report_url == "https://report-test.lambda-url.example/v1/reports"
     error_message = "report_url must be the function URL (trailing slash trimmed) plus /v1/reports."
+  }
+}
+
+# Issue #56: for a function URL with authorization_type = "NONE" the aws
+# provider creates the FunctionURLAllowPublicAccess (lambda:InvokeFunctionUrl)
+# statement itself, so declaring it again made a fresh apply fail on a
+# duplicate statement id. The mocked provider can't see that collision, and
+# plan state can't show `removed` blocks, so these checks read the module
+# source. The patterns need the `=` or the quotes, so the explanatory
+# comments in lambda.tf don't match.
+run "function_url_public_access_statement_is_left_to_the_provider" {
+  command = plan
+
+  assert {
+    condition = length(regexall(
+      "statement_id\\s*=\\s*\"FunctionURLAllowPublicAccess\"",
+      join("\n", [for f in fileset(path.module, "*.tf") : file("${path.module}/${f}")])
+    )) == 0
+    error_message = "No resource may declare statement_id FunctionURLAllowPublicAccess; the provider creates it for a NONE-auth function URL (issue #56)."
+  }
+
+  assert {
+    condition = length(regexall(
+      "\"lambda:InvokeFunctionUrl\"",
+      join("\n", [for f in fileset(path.module, "*.tf") : file("${path.module}/${f}")])
+    )) == 0
+    error_message = "No resource may grant lambda:InvokeFunctionUrl; the provider grants it for a NONE-auth function URL (issue #56)."
+  }
+
+  # The closing quote after the name stops report_url_invoke from matching.
+  assert {
+    condition = length(regexall(
+      "resource\\s+\"aws_lambda_permission\"\\s+\"report_url\"",
+      join("\n", [for f in fileset(path.module, "*.tf") : file("${path.module}/${f}")])
+    )) == 0
+    error_message = "aws_lambda_permission.report_url must stay removed (issue #56)."
+  }
+
+  assert {
+    condition = length(regexall(
+      "resource\\s+\"aws_lambda_permission\"",
+      join("\n", [for f in fileset(path.module, "*.tf") : file("${path.module}/${f}")])
+    )) == 2
+    error_message = "The module must declare exactly two lambda permissions: report_url_invoke and aggregate_schedule."
+  }
+
+  # A deployment that imported the statement must keep it: the removed block
+  # drops the address from state without destroying the live permission.
+  assert {
+    condition = length(regexall(
+      "removed\\s*\\{\\s*from\\s*=\\s*aws_lambda_permission\\.report_url\\s+lifecycle\\s*\\{\\s*destroy\\s*=\\s*false\\s*\\}\\s*\\}",
+      file("${path.module}/lambda.tf")
+    )) == 1
+    error_message = "lambda.tf must keep `removed { from = aws_lambda_permission.report_url  lifecycle { destroy = false } }` so existing deployments keep the live statement (issue #56)."
   }
 }
 
