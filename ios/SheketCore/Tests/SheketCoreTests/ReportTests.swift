@@ -213,4 +213,186 @@ final class ReportTests: XCTestCase {
     func testMaxAttemptsIsOneRetry() {
         XCTAssertEqual(ReportPolicy.maxAttempts, 2)
     }
+
+    // MARK: - Edge cases: wire names
+
+    func testFieldErrorRawValuesAreBackendFieldNames() {
+        XCTAssertEqual(ReportFieldError.installID.rawValue, "install_id")
+        XCTAssertEqual(ReportFieldError.sender.rawValue, "sender")
+        XCTAssertEqual(ReportFieldError.text.rawValue, "text")
+        XCTAssertEqual(ReportFieldError.appVersion.rawValue, "app_version")
+    }
+
+    func testKindRawValuesAreBackendKinds() {
+        XCTAssertEqual(ReportKind.call.rawValue, "call")
+        XCTAssertEqual(ReportKind.sms.rawValue, "sms")
+    }
+
+    // MARK: - Edge cases: install_id
+
+    func testValidInstallIDsPass() throws {
+        let valid = [
+            "00000000-0000-0000-0000-000000000000",
+            "ffffffff-ffff-ffff-ffff-ffffffffffff",
+            "01234567-89ab-cdef-0123-456789abcdef",
+        ]
+        for s in valid {
+            let body = try object(make(installID: s))
+            XCTAssertEqual(body["install_id"] as? String, s)
+        }
+    }
+
+    func testMalformedInstallIDShapesFail() {
+        let rejected = [
+            String(id.dropLast()), // 35 characters
+            id + "0", // 37 characters
+            " " + String(id.dropFirst()), // leading space
+            String(id.dropLast()) + "\n", // trailing newline, still 36
+            "3f0e4c1e6-a0b-4f5e-9d0a-2f6c1b7a9e11", // hyphen moved
+            "3f0e4c1e-6a0b-4f5e-9d0a_2f6c1b7a9e11", // "_" instead of "-"
+            "3F0e4c1e-6a0b-4f5e-9d0a-2f6c1b7a9e11", // one uppercase hex digit
+            "３f0e4c1e-6a0b-4f5e-9d0a-2f6c1b7a9e11", // fullwidth digit
+        ]
+        for s in rejected {
+            XCTAssertEqual(failure(make(installID: s)), .installID, String(reflecting: s))
+        }
+    }
+
+    // MARK: - Edge cases: sender
+
+    func testCallSenderIsNormalisedToE164() throws {
+        let body = try object(make(kind: .call, rawSender: "055-500-1234"))
+        XCTAssertEqual(body["sender"] as? String, "+972555001234")
+    }
+
+    func testShortServiceNumberIsAcceptedForSMSButNotForCall() throws {
+        XCTAssertEqual(failure(make(kind: .call, rawSender: "100")), .sender)
+        let body = try object(make(kind: .sms, rawSender: "100"))
+        XCTAssertEqual(body["sender"] as? String, "100")
+    }
+
+    func testInvalidSenderIDsFail() {
+        // Over 20 scalars after folding, inner whitespace, and the
+        // international dialling prefix all normalise to nil.
+        for s in [String(repeating: "a", count: 21), "Bank Leumi", "00972555001234"] {
+            XCTAssertEqual(failure(make(kind: .sms, rawSender: s)), .sender, String(reflecting: s))
+        }
+    }
+
+    // MARK: - Edge cases: text
+
+    func testTextIsSentExactlyAsGiven() throws {
+        let text = "  Hello\nWORLD \u{200F} "
+        let body = try object(make(kind: .sms, text: text))
+        XCTAssertEqual(body["text"] as? String, text)
+    }
+
+    func testTextLimitBoundaries() throws {
+        _ = try object(make(kind: .sms, text: String(repeating: "a", count: 1000)))
+        XCTAssertEqual(failure(make(kind: .sms, text: String(repeating: "😀", count: 1001))), .text)
+    }
+
+    func testCallWithEmptyTextFails() {
+        // The backend checks `text is not None`, so even "" on a call fails.
+        XCTAssertEqual(failure(make(kind: .call, text: "")), .text)
+    }
+
+    // MARK: - Edge cases: app_version
+
+    func testAppVersionAcceptsEveryAllowedCharacter() throws {
+        let all = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.+-"
+        var chunk = ""
+        for c in all {
+            chunk.append(c)
+            if chunk.count == 32 {
+                _ = try object(make(appVersion: chunk))
+                chunk = ""
+            }
+        }
+        if !chunk.isEmpty { _ = try object(make(appVersion: chunk)) }
+        _ = try object(make(appVersion: "1"))
+    }
+
+    func testAppVersionRejectsOtherCharacters() {
+        for s in ["1.0_0", "1.0/0", "v1.0\r", " 1.0", "1.0 ", "１.0", "é", "1,0"] {
+            XCTAssertEqual(failure(make(appVersion: s)), .appVersion, String(reflecting: s))
+        }
+    }
+
+    // MARK: - Edge cases: order
+
+    func testSenderIsCheckedBeforeText() {
+        XCTAssertEqual(failure(make(kind: .call, rawSender: "Unknown", text: "hi")), .sender)
+    }
+
+    func testSenderIsCheckedBeforeAppVersion() {
+        XCTAssertEqual(failure(make(rawSender: "", appVersion: "")), .sender)
+    }
+
+    func testInstallIDIsCheckedFirst() {
+        XCTAssertEqual(
+            failure(make(installID: "x", kind: .call, rawSender: "", text: "hi", appVersion: "")),
+            .installID
+        )
+    }
+
+    // MARK: - Edge cases: encoding
+
+    func testEncodingIsDeterministicAndValidUTF8JSON() throws {
+        let a = try make(kind: .sms, rawSender: "055-500-1234", text: "שלום 😀").get()
+        let b = try make(kind: .sms, rawSender: "055-500-1234", text: "שלום 😀").get()
+        XCTAssertEqual(a, b)
+        XCTAssertNotNil(String(data: a, encoding: .utf8))
+        for value in try object(.success(a)).values {
+            XCTAssertTrue(value is String, "every body value is a string")
+        }
+    }
+
+    func testLargestValidBodyWithLongestSenderFitsBackendLimit() throws {
+        // 1,000 non-BMP text scalars, a 20-scalar non-ASCII sender ID and a
+        // 32-character app version.
+        let sender = String(repeating: "א", count: 20)
+        let data = try make(
+            kind: .sms,
+            rawSender: sender,
+            text: String(repeating: "😀", count: 1000),
+            appVersion: String(repeating: "1", count: 32)
+        ).get()
+        XCTAssertLessThanOrEqual(data.count, 16384)
+        XCTAssertEqual(try object(.success(data))["sender"] as? String, sender)
+    }
+
+    // MARK: - Edge cases: ReportOutcome.from
+
+    func testOutcomeFromOtherStatusesIsRetryableWithoutRateLimit() {
+        for status in [0, 200, 201, 204, 301, 304, 401, 403, 404, 405, 413, 499, 501, 502, 504, 599] {
+            XCTAssertEqual(ReportOutcome.from(status: status, body: nil),
+                           .retryable(rateLimited: false), "status \(status)")
+        }
+    }
+
+    func testOutcomeIgnoresBodyExceptOn400() {
+        let body = Data(#"{"error":"sender"}"#.utf8)
+        XCTAssertEqual(ReportOutcome.from(status: 202, body: body), .sent)
+        XCTAssertEqual(ReportOutcome.from(status: 429, body: body), .retryable(rateLimited: true))
+        XCTAssertEqual(ReportOutcome.from(status: 500, body: body), .retryable(rateLimited: false))
+    }
+
+    func testOutcomeFrom400WithUnusualBodies() {
+        let cases: [(String, String?)] = [
+            (#"{"error":"install_id"}"#, "install_id"),
+            (#"{"error":"body"}"#, "body"),
+            (#"{"error":"app_version","extra":1}"#, "app_version"),
+            ("{}", nil),
+            (#"["sender"]"#, nil),
+            (#""sender""#, nil),
+            (#"{"error":null}"#, nil),
+            (#"{"error":{"field":"sender"}}"#, nil),
+            ("", nil),
+        ]
+        for (json, expected) in cases {
+            XCTAssertEqual(ReportOutcome.from(status: 400, body: Data(json.utf8)),
+                           .rejected(expected), json)
+        }
+    }
 }
