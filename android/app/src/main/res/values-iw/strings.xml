@@ -20,7 +20,20 @@
 
     <string name="blocked_last_7_days">שיחות שנחסמו ב-7 הימים האחרונים: %1$d</string>
 
+    <string name="report_button">דיווח על שיחה</string>
     <string name="about_button">אודות ופרטיות</string>
+
+    <string name="report_title">דיווח על שיחה</string>
+    <string name="report_empty">עדיין אין שיחות שסוננו. מופיעות כאן רק שיחות ממספרים שאינם באנשי הקשר שלך.</string>
+    <string name="report_number_unknown">חסוי או לא ידוע</string>
+    <string name="report_row_blocked">%1$s · נחסמה</string>
+    <string name="report_row_rang">%1$s · צלצלה</string>
+    <string name="report_action">דיווח</string>
+    <string name="report_state_reported">דווחה</string>
+    <string name="report_state_not_reportable">לא ניתן לדווח</string>
+    <string name="report_result_sent">הדיווח נשלח. תודה.</string>
+    <string name="report_result_try_later">יותר מדי דיווחים כרגע. אפשר לנסות שוב מאוחר יותר.</string>
+    <string name="report_result_not_sent">הדיווח לא נשלח. אפשר לנסות שוב מאוחר יותר.</string>
 
     <string name="about_title">אודות שקט</string>
     <string name="about_what">שקט חוסמת שיחות ספאם של בחירות לפני שהן מצלצלות. כל שיחה נכנסת נבדקת מול רשימת מספרים שנשמרת בטלפון, כך שאין שימוש ברשת בזמן שיחה. הרשימה נבנית מדיווחי משתמשים: מספר נוסף רק אחרי שלפחות 3 התקנות שונות מלפחות 2 רשתות שונות דיווחו עליו. האפליקציה מורידה את הרשימה העדכנית מהאינטרנט.</string>

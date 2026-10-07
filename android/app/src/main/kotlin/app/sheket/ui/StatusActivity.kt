@@ -66,6 +66,9 @@ class StatusActivity : Activity() {
 
         roleRequest.setOnClickListener { requestRole() }
         roleSettings.setOnClickListener { openDefaultAppsSettings() }
+        findViewById<Button>(R.id.report_button).setOnClickListener {
+            startActivity(Intent(this, ReportActivity::class.java))
+        }
         findViewById<Button>(R.id.about_button).setOnClickListener {
             startActivity(Intent(this, AboutActivity::class.java))
         }

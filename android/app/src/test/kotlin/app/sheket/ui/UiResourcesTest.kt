@@ -10,7 +10,8 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 
 /**
- * Static checks on the UI resources and manifest entries of #23 (AC-3, REQ-4):
+ * Static checks on the UI resources and manifest entries of #23 (AC-3, REQ-4)
+ * and the report screen of #24 (REQ-5):
  * every user-visible string is a resource in both English and Hebrew, layouts
  * hold no hard-coded text, and the layouts are right-to-left safe. The files
  * are read as XML from `src/main` (the `sheket.mainSrcDir` system property),
@@ -40,6 +41,42 @@ class UiResourcesTest {
         val names = layouts.map { it.name }.toSet()
         assertTrue("missing activity_status.xml in $names", "activity_status.xml" in names)
         assertTrue("missing activity_about.xml in $names", "activity_about.xml" in names)
+        assertTrue("missing activity_report.xml in $names", "activity_report.xml" in names)
+        assertTrue("missing item_screened_call.xml in $names", "item_screened_call.xml" in names)
+    }
+
+    @Test
+    fun reportLayoutsHaveTheViewsReportActivityUses() {
+        val screen = viewsById(File(resDir, "layout/activity_report.xml"))
+        assertEquals("ListView", screen["report_list"]?.tagName)
+        assertEquals("TextView", screen["report_empty"]?.tagName)
+        assertEquals("@string/report_empty", screen.getValue("report_empty").getAttributeNS(ANDROID_NS, "text"))
+        assertEquals("TextView", screen["report_result"]?.tagName)
+        // Shown only once there is a result, and the empty text only once the log is read.
+        assertEquals("gone", screen.getValue("report_result").getAttributeNS(ANDROID_NS, "visibility"))
+        assertEquals("gone", screen.getValue("report_empty").getAttributeNS(ANDROID_NS, "visibility"))
+
+        val row = viewsById(File(resDir, "layout/item_screened_call.xml"))
+        assertEquals("TextView", row["call_number"]?.tagName)
+        assertEquals("TextView", row["call_detail"]?.tagName)
+        assertEquals("Button", row["call_report"]?.tagName)
+        assertEquals("@string/report_action", row.getValue("call_report").getAttributeNS(ANDROID_NS, "text"))
+        assertEquals("ProgressBar", row["call_progress"]?.tagName)
+        assertEquals("TextView", row["call_state"]?.tagName)
+        // The end area starts hidden; the adapter shows exactly one of them per row.
+        for (id in listOf("call_report", "call_progress", "call_state")) {
+            assertEquals("$id visibility", "gone", row.getValue(id).getAttributeNS(ANDROID_NS, "visibility"))
+        }
+        // A focusable button inside a ListView row would take focus from the row.
+        assertEquals("false", row.getValue("call_report").getAttributeNS(ANDROID_NS, "focusable"))
+    }
+
+    @Test
+    fun statusScreenLinksToTheReportScreen() {
+        val status = viewsById(File(resDir, "layout/activity_status.xml"))
+        val button = status["report_button"]
+        assertEquals("Button", button?.tagName)
+        assertEquals("@string/report_button", button!!.getAttributeNS(ANDROID_NS, "text"))
     }
 
     @Test
@@ -166,7 +203,7 @@ class UiResourcesTest {
         assertEquals("@style/Theme.Sheket", app.getAttributeNS(ANDROID_NS, "theme"))
 
         val activities = elements(doc, "activity").associateBy { it.getAttributeNS(ANDROID_NS, "name") }
-        assertEquals(setOf(".ui.StatusActivity", ".ui.AboutActivity"), activities.keys)
+        assertEquals(setOf(".ui.StatusActivity", ".ui.AboutActivity", ".ui.ReportActivity"), activities.keys)
 
         val status = activities.getValue(".ui.StatusActivity")
         assertEquals("StatusActivity must be exported", "true", status.getAttributeNS(ANDROID_NS, "exported"))
@@ -184,6 +221,28 @@ class UiResourcesTest {
         val about = activities.getValue(".ui.AboutActivity")
         assertEquals("AboutActivity must not be exported", "false", about.getAttributeNS(ANDROID_NS, "exported"))
         assertTrue("AboutActivity must have no intent filter", elements(about, "intent-filter").isEmpty())
+
+        val report = activities.getValue(".ui.ReportActivity")
+        assertEquals("ReportActivity must not be exported", "false", report.getAttributeNS(ANDROID_NS, "exported"))
+        assertTrue("ReportActivity must have no intent filter", elements(report, "intent-filter").isEmpty())
+        assertEquals("@string/report_title", report.getAttributeNS(ANDROID_NS, "label"))
+    }
+
+    @Test
+    fun formatArgumentsUsedByReportScreen() {
+        // ReportActivity passes the formatted time to the row strings and no
+        // arguments to the other report_ strings.
+        val withArgs = mapOf(
+            "report_row_blocked" to listOf("%1\$s"),
+            "report_row_rang" to listOf("%1\$s"),
+        )
+        val reportKeys = english.keys.filter { it.startsWith("report_") }
+        assertTrue("no report_ strings", reportKeys.size >= 12)
+        for (key in reportKeys) {
+            val args = withArgs[key].orEmpty()
+            assertEquals("values/$key", args, formatArgs(english.getValue(key)))
+            assertEquals("values-iw/$key", args, formatArgs(hebrew.getValue(key)))
+        }
     }
 
     @Test
@@ -216,6 +275,16 @@ class UiResourcesTest {
         val codeFiles = File(mainDir, "kotlin").walkTopDown().filter { it.isFile && it.extension == "kt" }
         return xmlFiles.flatMap { f -> xmlRef.findAll(f.readText()).map { f.name to it.groupValues[1] } }.toList() +
             codeFiles.flatMap { f -> codeRef.findAll(f.readText()).map { f.name to it.groupValues[1] } }.toList()
+    }
+
+    /** The elements of [file] that have an `android:id`, keyed by the id name. */
+    private fun viewsById(file: File): Map<String, Element> {
+        val result = linkedMapOf<String, Element>()
+        forEachElement(parse(file)) { el ->
+            val id = el.getAttributeNS(ANDROID_NS, "id")
+            if (id.startsWith("@+id/")) result[id.removePrefix("@+id/")] = el
+        }
+        return result
     }
 
     private fun strings(file: File): Map<String, String> {

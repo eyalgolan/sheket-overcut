@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/report_title"
+        android:textAlignment="viewStart"
+        android:textAppearance="?android:attr/textAppearanceLarge" />
+
+    <!-- Filled at runtime with the result of the last report. -->
+    <TextView
+        android:id="@+id/report_result"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:textAlignment="viewStart"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:visibility="gone" />
+
+    <!-- The screened-call log, newest first. -->
+    <ListView
+        android:id="@+id/report_list"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="16dp"
+        android:layout_weight="1" />
+
+    <!-- The list's empty view; shown once the log has been read. -->
+    <TextView
+        android:id="@+id/report_empty"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/report_empty"
+        android:textAlignment="viewStart"
+        android:textAppearance="?android:attr/textAppearanceMedium"
+        android:visibility="gone" />
+
+</LinearLayout>
