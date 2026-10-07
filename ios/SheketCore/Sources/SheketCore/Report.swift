@@ -53,6 +53,39 @@ public enum ReportOutcome: Equatable {
     case retryable(rateLimited: Bool)
 }
 
+extension ReportOutcome {
+    /// Maps the backend's responses (spec section 6.2: `202` accepted, `400`
+    /// malformed with `{"error": "<field>"}`, `429` rate limited) to an
+    /// outcome. `status` is nil when there was no HTTP response.
+    ///
+    /// A missing response or a 5xx is retryable without rate limiting. Any
+    /// other status (for example 404 or 405, which the backend returns before
+    /// any rate-limit quota is spent, or an unexpected 2xx/3xx) is treated as
+    /// retryable too: one retry costs nothing, and the user then sees "not
+    /// sent, try again later" (spec sections 6.2 and 7).
+    ///
+    /// For `400`, the field is the string `error` of a JSON object body, or
+    /// nil if the body is missing, is not valid JSON, is not an object, or
+    /// has no string `error`. This never throws.
+    public static func from(status: Int?, body: Data?) -> ReportOutcome {
+        switch status {
+        case nil:
+            return .retryable(rateLimited: false)
+        case 202?:
+            return .sent
+        case 400?:
+            let object = body.flatMap { try? JSONSerialization.jsonObject(with: $0) }
+            let field = (object as? [String: Any])?["error"] as? String
+            return .rejected(field)
+        case 429?:
+            return .retryable(rateLimited: true)
+        default:
+            // 5xx and every other status.
+            return .retryable(rateLimited: false)
+        }
+    }
+}
+
 /// Retry policy for reports.
 public enum ReportPolicy {
     /// Spec section 7 says a failed report is dropped after one retry and
