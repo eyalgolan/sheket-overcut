@@ -56,16 +56,20 @@ struct StatusView: View {
                     Text("status.callBlocking.enabled")
                 case .disabled:
                     Text("status.callBlocking.disabled")
-                    Text(callBlockingPath)
-                    Button("status.callBlocking.openSettings") {
-                        CXCallDirectoryManager.sharedInstance.openSettings { _ in }
-                    }
                 default:
                     // .unknown and any future status.
                     Text("status.callBlocking.unknown")
                 }
                 if let error = model.snapshot?.lastReloadError {
                     Text("status.callBlocking.reloadError \(error)")
+                }
+                // Whenever blocking is not confirmed on, or a reload failed,
+                // show where to turn the extension on (spec section 7).
+                if model.callDirectoryStatus != .enabled || model.snapshot?.lastReloadError != nil {
+                    Text(callBlockingPath)
+                    Button("status.callBlocking.openSettings") {
+                        CXCallDirectoryManager.sharedInstance.openSettings { _ in }
+                    }
                 }
             }
 
