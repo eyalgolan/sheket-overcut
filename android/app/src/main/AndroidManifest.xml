@@ -37,6 +37,13 @@
             android:exported="false"
             android:label="@string/about_title" />
 
+        <!-- Spec section 5: the report screen. Not exported, so only this app
+             can open it. -->
+        <activity
+            android:name=".ui.ReportActivity"
+            android:exported="false"
+            android:label="@string/report_title" />
+
         <!-- Spec section 7: the periodic blocklist refresh. BIND_JOB_SERVICE
              lets only the system bind it. -->
         <service
