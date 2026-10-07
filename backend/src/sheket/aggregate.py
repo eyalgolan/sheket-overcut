@@ -279,7 +279,8 @@ def _published(
     grouped by ``(kind, sender)``, and a group is published when it has at
     least ``min_installs`` distinct ``install_id`` values and at least
     ``min_networks`` distinct ``net_hash`` values, so one install reporting
-    many times counts once.
+    many times counts once. A group stops being counted once it qualifies,
+    which bounds memory under a flood of reports for one sender.
 
     A malformed report is logged and skipped, never raised. Logs carry only
     the reason and the kind, never the sender, install ID or network hash.
@@ -288,6 +289,7 @@ def _published(
     cutoff = now_dt - WINDOW
     installs: dict[tuple[str, str], set[str]] = {}
     nets: dict[tuple[str, str], set[str]] = {}
+    qualified: set[tuple[str, str]] = set()
 
     for report in reports:
         if not isinstance(report, dict):
@@ -331,18 +333,24 @@ def _published(
         if received < cutoff:
             continue
         key = (kind, sender)
-        installs.setdefault(key, set()).add(report["install_id"])
-        nets.setdefault(key, set()).add(report["net_hash"])
+        if key in qualified:
+            continue
+        ids = installs.setdefault(key, set())
+        ids.add(report["install_id"])
+        key_nets = nets.setdefault(key, set())
+        key_nets.add(report["net_hash"])
+        if len(ids) >= min_installs and len(key_nets) >= min_networks:
+            qualified.add(key)
+            installs.pop(key)
+            nets.pop(key)
 
     call_set: set[str] = set()
     sms_set: set[str] = set()
-    for key, ids in installs.items():
-        if len(ids) >= min_installs and len(nets[key]) >= min_networks:
-            kind, sender = key
-            # Provisional answer to open owner Decision 1: kinds stay
-            # separate. A call group publishes only to call_set and an sms
-            # group only to sms_set.
-            (call_set if kind == "call" else sms_set).add(sender)
+    for kind, sender in qualified:
+        # Provisional answer to open owner Decision 1: kinds stay
+        # separate. A call group publishes only to call_set and an sms
+        # group only to sms_set.
+        (call_set if kind == "call" else sms_set).add(sender)
     return call_set, sms_set
 
 
