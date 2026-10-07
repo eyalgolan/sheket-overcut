@@ -1233,11 +1233,16 @@ def test_successful_run_prints_exactly_one_emf_line(aws, capsys):
         {
             "Namespace": "Sheket",
             "Dimensions": [["Function"]],
-            "Metrics": [{"Name": "AggregateSucceeded", "Unit": "Count"}],
+            "Metrics": [
+                {"Name": "AggregateSucceeded", "Unit": "Count"},
+                {"Name": "ReportReadCapped", "Unit": "Count"},
+            ],
         }
     ]
     assert line["Function"] == "aggregate"
     assert line["AggregateSucceeded"] == 1
+    # An uncapped run still emits the flag, as 0, so the alarm sees data.
+    assert line["ReportReadCapped"] == 0
     assert line["written"] is True
     assert isinstance(line["_aws"]["Timestamp"], int)
     assert line["_aws"]["Timestamp"] > 1_000_000_000_000  # milliseconds
@@ -1255,6 +1260,7 @@ def test_emf_line_carries_counts_only(aws, capsys):
         "_aws",
         "Function",
         "AggregateSucceeded",
+        "ReportReadCapped",
         "written",
         "call_numbers",
         "sms_senders",
@@ -1268,6 +1274,7 @@ def test_each_run_prints_its_own_heartbeat(aws, clock, capsys):
     lines = emf_lines(capsys.readouterr().out)
     assert [line["written"] for line in lines] == [True, False]
     assert all(line["AggregateSucceeded"] == 1 for line in lines)
+    assert all(line["ReportReadCapped"] == 0 for line in lines)
 
 
 # --- AC-7: thresholds and names come from the environment ------------------------

@@ -134,17 +134,17 @@ run "schedule_permission_is_scoped_to_the_rule" {
   }
 }
 
-run "exactly_four_alarms_and_no_new_iam_roles" {
+run "exactly_five_alarms_and_no_new_iam_roles" {
   command = plan
 
   # Plan-time state can't be enumerated by type, so count the declarations in
-  # the module source. Spec §5 lists exactly four alarms (AC-2).
+  # the module source. Spec §5 lists exactly five alarms (AC-2, issue #49).
   assert {
     condition = length(regexall(
       "resource\\s+\"aws_cloudwatch_metric_alarm\"",
       join("\n", [for f in fileset(path.module, "*.tf") : file("${path.module}/${f}")])
-    )) == 4
-    error_message = "The module must declare exactly four CloudWatch alarms (AC-2)."
+    )) == 5
+    error_message = "The module must declare exactly five CloudWatch alarms (AC-2, issue #49)."
   }
 
   assert {
@@ -277,7 +277,7 @@ run "blocklist_stale_alarm" {
     condition = (
       regex("METRIC_NAMESPACE = \"([^\"]+)\"", file("${path.module}/../backend/src/sheket/aggregate.py"))[0] == aws_cloudwatch_metric_alarm.blocklist_stale.namespace &&
       regex("FUNCTION_NAME = \"([^\"]+)\"", file("${path.module}/../backend/src/sheket/aggregate.py"))[0] == aws_cloudwatch_metric_alarm.blocklist_stale.dimensions["Function"] &&
-      strcontains(file("${path.module}/../backend/src/sheket/aggregate.py"), "\"Metrics\": [{\"Name\": \"${aws_cloudwatch_metric_alarm.blocklist_stale.metric_name}\"") &&
+      strcontains(file("${path.module}/../backend/src/sheket/aggregate.py"), "{\"Name\": \"${aws_cloudwatch_metric_alarm.blocklist_stale.metric_name}\", \"Unit\": \"Count\"}") &&
       strcontains(file("${path.module}/../backend/src/sheket/aggregate.py"), "\"Dimensions\": [[\"Function\"]]")
     )
     error_message = "blocklist_stale must use the namespace, metric and dimension that _emit_success emits (AC-3)."
@@ -311,6 +311,56 @@ run "blocklist_stale_alarm" {
       aws_cloudwatch_metric_alarm.blocklist_stale.ok_actions == toset([var.alarm_topic_arn])
     )
     error_message = "blocklist_stale must notify the alarms topic on ALARM and OK."
+  }
+}
+
+run "report_read_capped_alarm" {
+  command = plan
+
+  assert {
+    condition = (
+      aws_cloudwatch_metric_alarm.report_read_capped.alarm_name == "sheket-aggregate-report-read-capped" &&
+      aws_cloudwatch_metric_alarm.report_read_capped.namespace == "Sheket" &&
+      aws_cloudwatch_metric_alarm.report_read_capped.metric_name == "ReportReadCapped" &&
+      aws_cloudwatch_metric_alarm.report_read_capped.dimensions == tomap({ Function = "aggregate" })
+    )
+    error_message = "report_read_capped must watch Sheket/ReportReadCapped with Function = aggregate (issue #49)."
+  }
+
+  # Drift guard: the alarm must match what the handler actually emits
+  # (backend/src/sheket/aggregate.py, _emit_success).
+  assert {
+    condition = (
+      regex("METRIC_NAMESPACE = \"([^\"]+)\"", file("${path.module}/../backend/src/sheket/aggregate.py"))[0] == aws_cloudwatch_metric_alarm.report_read_capped.namespace &&
+      regex("FUNCTION_NAME = \"([^\"]+)\"", file("${path.module}/../backend/src/sheket/aggregate.py"))[0] == aws_cloudwatch_metric_alarm.report_read_capped.dimensions["Function"] &&
+      strcontains(file("${path.module}/../backend/src/sheket/aggregate.py"), "{\"Name\": \"${aws_cloudwatch_metric_alarm.report_read_capped.metric_name}\", \"Unit\": \"Count\"}") &&
+      strcontains(file("${path.module}/../backend/src/sheket/aggregate.py"), "\"${aws_cloudwatch_metric_alarm.report_read_capped.metric_name}\": 1 if capped else 0")
+    )
+    error_message = "report_read_capped must use the namespace, metric and dimension that _emit_success emits."
+  }
+
+  assert {
+    condition = (
+      aws_cloudwatch_metric_alarm.report_read_capped.statistic == "Maximum" &&
+      aws_cloudwatch_metric_alarm.report_read_capped.period == 900 &&
+      aws_cloudwatch_metric_alarm.report_read_capped.evaluation_periods == 1 &&
+      aws_cloudwatch_metric_alarm.report_read_capped.threshold == 0 &&
+      aws_cloudwatch_metric_alarm.report_read_capped.comparison_operator == "GreaterThanThreshold"
+    )
+    error_message = "report_read_capped must fire on any capped run (Maximum > 0 over 15 minutes)."
+  }
+
+  assert {
+    condition     = aws_cloudwatch_metric_alarm.report_read_capped.treat_missing_data == "notBreaching"
+    error_message = "A missing heartbeat is blocklist_stale's job, so missing data must not breach report_read_capped."
+  }
+
+  assert {
+    condition = (
+      aws_cloudwatch_metric_alarm.report_read_capped.alarm_actions == toset([var.alarm_topic_arn]) &&
+      aws_cloudwatch_metric_alarm.report_read_capped.ok_actions == toset([var.alarm_topic_arn])
+    )
+    error_message = "report_read_capped must notify the alarms topic on ALARM and OK."
   }
 }
 
@@ -372,7 +422,8 @@ run "custom_name_prefix_flows_into_schedule_and_alarms" {
       aws_cloudwatch_metric_alarm.report_errors.alarm_name == "dev-report-errors" &&
       aws_cloudwatch_metric_alarm.report_throttles.alarm_name == "dev-report-throttles" &&
       aws_cloudwatch_metric_alarm.aggregate_errors.alarm_name == "dev-aggregate-errors" &&
-      aws_cloudwatch_metric_alarm.blocklist_stale.alarm_name == "dev-aggregate-blocklist-stale"
+      aws_cloudwatch_metric_alarm.blocklist_stale.alarm_name == "dev-aggregate-blocklist-stale" &&
+      aws_cloudwatch_metric_alarm.report_read_capped.alarm_name == "dev-aggregate-report-read-capped"
     )
     error_message = "name_prefix must flow into every alarm name."
   }
@@ -388,8 +439,11 @@ run "custom_name_prefix_flows_into_schedule_and_alarms" {
 
   # The heartbeat dimension is the literal the handler emits, not the Lambda name.
   assert {
-    condition     = aws_cloudwatch_metric_alarm.blocklist_stale.dimensions == tomap({ Function = "aggregate" })
-    error_message = "The stale alarm dimension must stay Function = aggregate regardless of name_prefix (AC-3)."
+    condition = (
+      aws_cloudwatch_metric_alarm.blocklist_stale.dimensions == tomap({ Function = "aggregate" }) &&
+      aws_cloudwatch_metric_alarm.report_read_capped.dimensions == tomap({ Function = "aggregate" })
+    )
+    error_message = "The stale and read-capped alarm dimensions must stay Function = aggregate regardless of name_prefix (AC-3)."
   }
 }
 

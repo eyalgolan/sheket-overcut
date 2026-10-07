@@ -135,7 +135,7 @@ Backend components (new Terraform root module `infra/` in this repo,
   `contract/blocklist.schema.json` into the Lambda package. Changing it is a
   commit and an apply.
 - **Alarms**: report Lambda errors and throttles, aggregate Lambda errors,
-  blocklist older than 45 minutes.
+  blocklist older than 45 minutes, report read capped during a flood.
 
 Backend requirements: Terraform with providers pinned exactly and the lock
 file committed; local, gitignored state; Lambdas in Python 3.13 on arm64;

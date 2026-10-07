@@ -256,7 +256,9 @@ def test_reading_exactly_the_cap_is_not_capped(monkeypatch, mono, caplog):
     monkeypatch.setattr(aggregate, "MAX_REPORTS_PER_RUN", 24)
     caplog.set_level(logging.INFO, logger="sheket.aggregate")
 
-    assert len(list(aggregate._load_reports(TABLE_NAME, NOW))) == 24
+    status = {"capped": False}
+    assert len(list(aggregate._load_reports(TABLE_NAME, NOW, status=status))) == 24
+    assert status == {"capped": False}
     assert capped_messages(caplog) == []
     assert loaded_messages(caplog) == ["loaded 24 reports from 8 day partitions"]
 
@@ -266,7 +268,9 @@ def test_one_item_over_the_cap_is_capped(monkeypatch, mono, caplog):
     monkeypatch.setattr(aggregate, "MAX_REPORTS_PER_RUN", 23)
     caplog.set_level(logging.INFO, logger="sheket.aggregate")
 
-    assert len(list(aggregate._load_reports(TABLE_NAME, NOW))) == 23
+    status = {"capped": False}
+    assert len(list(aggregate._load_reports(TABLE_NAME, NOW, status=status))) == 23
+    assert status == {"capped": True}
     assert capped_messages(caplog) == [
         "report read capped: 23 reports, 8 of 8 day partitions, 0.0 s"
     ]
@@ -534,6 +538,7 @@ def test_item_capped_run_publishes_curated_overrides_and_qualified(
     (line,) = emf_lines(capsys.readouterr().out)
     assert line["written"] is True
     assert line["AggregateSucceeded"] == 1
+    assert line["ReportReadCapped"] == 1
 
 
 def test_time_capped_run_publishes_curated_overrides_and_qualified(
@@ -556,6 +561,7 @@ def test_time_capped_run_publishes_curated_overrides_and_qualified(
     assert message.startswith("report read capped: 6 reports, 7 of 8 day partitions")
     (line,) = emf_lines(capsys.readouterr().out)
     assert line["AggregateSucceeded"] == 1
+    assert line["ReportReadCapped"] == 1
 
 
 CALL_OLD = "+972507776655"
@@ -582,9 +588,10 @@ def test_capped_run_publishes_a_sender_reported_only_today(
     assert message.startswith("report read capped: 3 reports, 4 of 8 day partitions")
     (line,) = emf_lines(capsys.readouterr().out)
     assert line["AggregateSucceeded"] == 1
+    assert line["ReportReadCapped"] == 1
 
 
-def test_uncapped_run_publishes_both_groups(aws, caplog, curated):
+def test_uncapped_run_publishes_both_groups(aws, caplog, capsys, curated):
     ddb, s3 = aws
     seed_capped_run(ddb)
     caplog.set_level(logging.INFO, logger="sheket.aggregate")
@@ -593,6 +600,8 @@ def test_uncapped_run_publishes_both_groups(aws, caplog, curated):
     assert doc["call_numbers"] == [CALL]
     assert doc["sms_senders"] == [SMS_NORMALISED, "spamone"]
     assert capped_messages(caplog) == []
+    (line,) = emf_lines(capsys.readouterr().out)
+    assert line["ReportReadCapped"] == 0
 
 
 # --- the synthetic ~1M-report flood and the Lambda sizing --------------------------
@@ -652,6 +661,7 @@ def assert_flood_publication(result, call_numbers):
     assert "loaded 1000000 reports from" in result["stderr"]
     (line,) = emf_lines(result["stdout"])
     assert line["AggregateSucceeded"] == 1
+    assert line["ReportReadCapped"] == 1
 
 
 def test_flood_of_distinct_senders_is_capped_and_overrides_publish(flood):

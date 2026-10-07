@@ -1,6 +1,7 @@
-# Alarms for spec §5: report errors, report throttles, aggregate errors and a
-# blocklist older than 45 minutes. All of them notify one SNS topic. The
-# recipient is provisional until the owner settles Decision 4.
+# Alarms for spec §5: report errors, report throttles, aggregate errors, a
+# blocklist older than 45 minutes and a report read capped during a flood. All
+# of them notify one SNS topic. The recipient is provisional until the owner
+# settles Decision 4.
 resource "aws_sns_topic" "alarms" {
   name = "${var.name_prefix}-alarms"
 }
@@ -83,6 +84,28 @@ resource "aws_cloudwatch_metric_alarm" "blocklist_stale" {
   threshold           = 1
   comparison_operator = "LessThanThreshold"
   treat_missing_data  = "breaching"
+  alarm_actions       = [aws_sns_topic.alarms.arn]
+  ok_actions          = [aws_sns_topic.alarms.arn]
+}
+
+# Uses the ReportReadCapped flag that _emit_success emits on every successful
+# run (1 when the report read hit MAX_REPORTS_PER_RUN or READ_TIME_BUDGET in
+# backend/src/sheket/aggregate.py, else 0), with the same literal namespace and
+# dimension as blocklist_stale. Fires on the first capped run in a 15-minute
+# period. Missing data is notBreaching: a missing heartbeat is blocklist_stale's
+# job.
+resource "aws_cloudwatch_metric_alarm" "report_read_capped" {
+  alarm_name          = "${local.aggregate_name}-report-read-capped"
+  alarm_description   = "The aggregate Lambda capped its report read during a flood, so the oldest reports were not counted (spec §5)."
+  namespace           = "Sheket"
+  metric_name         = "ReportReadCapped"
+  dimensions          = { Function = "aggregate" }
+  statistic           = "Maximum"
+  period              = 900
+  evaluation_periods  = 1
+  threshold           = 0
+  comparison_operator = "GreaterThanThreshold"
+  treat_missing_data  = "notBreaching"
   alarm_actions       = [aws_sns_topic.alarms.arn]
   ok_actions          = [aws_sns_topic.alarms.arn]
 }

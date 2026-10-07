@@ -13,7 +13,8 @@ point ``sheket.aggregate.handler``, runs on a schedule. It reads the last
 7 days of reports and the ``OVERRIDE`` items from DynamoDB and the previous
 ``v1/blocklist.json`` from S3, then builds -> validates -> serialises. It
 writes only when the content changed or the forced refresh is due, and prints
-one EMF ``AggregateSucceeded`` line per successful run. The contract files are
+one EMF line per successful run, carrying the ``AggregateSucceeded``
+heartbeat and the ``ReportReadCapped`` flag. The contract files are
 loaded at call time from the packaged ``sheket/contract/`` next to this module
 (design Phase 3.3).
 
@@ -27,7 +28,9 @@ Provisional values, named here in one place:
 - The per-run report read cap (``MAX_REPORTS_PER_RUN``, ``READ_TIME_BUDGET``)
   bounds memory and time under a report flood (issue #49). Reports are read
   newest first, across day partitions and within each one, so a capped run
-  keeps the newest reports and drops the oldest.
+  keeps the newest reports and drops the oldest. A capped run logs a warning
+  and emits ``ReportReadCapped = 1``, which the report-read-capped alarm
+  watches.
 
 Configuration comes from the environment, read at call time, never at import:
 
@@ -82,7 +85,9 @@ MAX_REPORTS_PER_RUN = 1_000_000
 # Most seconds spent reading reports per run (issue #49), leaving the rest of
 # the Lambda timeout for building, validating and writing.
 READ_TIME_BUDGET = 240
-# EMF heartbeat (`_emit_success`); the stale-list alarm (#8) watches it.
+# EMF line (`_emit_success`): the stale-list alarm (#8) watches its
+# AggregateSucceeded heartbeat and the report-read-capped alarm its
+# ReportReadCapped flag.
 METRIC_NAMESPACE = "Sheket"
 FUNCTION_NAME = "aggregate"
 # Use with fullmatch only: an anchoring "$" would accept a trailing newline.
@@ -500,7 +505,9 @@ def _query_all(**kwargs) -> list[dict]:
     return list(_query_items(**kwargs))
 
 
-def _load_reports(table: str, now: int) -> Iterator[dict]:
+def _load_reports(
+    table: str, now: int, *, status: dict | None = None
+) -> Iterator[dict]:
     """Stream the reports of the last ``WINDOW`` from their UTC day partitions.
 
     Reports are stored under ``pk = "R#YYYY-MM-DD"`` with ``sk`` starting with
@@ -521,6 +528,10 @@ def _load_reports(table: str, now: int) -> Iterator[dict]:
     the overrides are unaffected. The newest-first order is on purpose: a
     capped run drops the oldest evidence, which is closest to expiring, and
     keeps counting the senders reported most recently.
+
+    When ``status`` is given, ``status["capped"]`` is set to ``True`` if the
+    read stops early; it is left untouched otherwise. Read it only after the
+    stream has been drained.
     """
     now_dt = datetime.fromtimestamp(now, timezone.utc)
     cutoff = now_dt - WINDOW
@@ -549,6 +560,8 @@ def _load_reports(table: str, now: int) -> Iterator[dict]:
         ):
             elapsed = _monotonic() - start
             if read >= MAX_REPORTS_PER_RUN or elapsed >= READ_TIME_BUDGET:
+                if status is not None:
+                    status["capped"] = True
                 logger.warning(
                     "report read capped: %d reports, %d of %d day partitions, %.1f s",
                     read,
@@ -681,11 +694,13 @@ def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
     return age >= FORCED_REFRESH
 
 
-def _emit_success(written: bool, doc: dict) -> None:
-    """Print one CloudWatch Embedded Metric Format ``AggregateSucceeded`` line.
+def _emit_success(written: bool, doc: dict, capped: bool) -> None:
+    """Print one CloudWatch Embedded Metric Format line for a successful run.
 
-    The metric is ``AggregateSucceeded = 1`` in namespace ``Sheket`` with the
-    dimension ``Function = aggregate``; ``written``, ``call_numbers`` and
+    The metrics are ``AggregateSucceeded = 1`` and ``ReportReadCapped`` (``1``
+    when the report read hit ``MAX_REPORTS_PER_RUN`` or ``READ_TIME_BUDGET``,
+    else ``0``) in namespace ``Sheket`` with the dimension
+    ``Function = aggregate``; ``written``, ``call_numbers`` and
     ``sms_senders`` are plain properties (not metrics) for the audit trail.
     ``print``, not the logger: EMF needs the raw single-line JSON on stdout.
     Not emitted when the run raises, so the stale-list alarm (#8) sees a
@@ -698,12 +713,16 @@ def _emit_success(written: bool, doc: dict) -> None:
                 {
                     "Namespace": METRIC_NAMESPACE,
                     "Dimensions": [["Function"]],
-                    "Metrics": [{"Name": "AggregateSucceeded", "Unit": "Count"}],
+                    "Metrics": [
+                        {"Name": "AggregateSucceeded", "Unit": "Count"},
+                        {"Name": "ReportReadCapped", "Unit": "Count"},
+                    ],
                 }
             ],
         },
         "Function": FUNCTION_NAME,
         "AggregateSucceeded": 1,
+        "ReportReadCapped": 1 if capped else 0,
         "written": written,
         "call_numbers": len(doc["call_numbers"]),
         "sms_senders": len(doc["sms_senders"]),
@@ -729,7 +748,8 @@ def handler(event, context) -> None:
     curated, schema = _load_contract()
     now = _now()
 
-    reports = _load_reports(cfg.table, now)
+    read_status = {"capped": False}
+    reports = _load_reports(cfg.table, now, status=read_status)
     overrides = _load_overrides(cfg.table)
     previous_doc, previous_version = _load_previous(cfg.bucket)
 
@@ -762,4 +782,5 @@ def handler(event, context) -> None:
         len(doc["call_numbers"]),
         len(doc["sms_senders"]),
     )
-    _emit_success(written, doc)
+    # build_blocklist has drained the report stream, so the flag is final.
+    _emit_success(written, doc, read_status["capped"])
