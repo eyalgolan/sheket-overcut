@@ -13,6 +13,7 @@ import app.sheket.report.InstallId
 import app.sheket.report.ReportClient
 import app.sheket.report.ReportOutcome
 import app.sheket.report.ReportTracker
+import app.sheket.screening.ScreenedCallCodec
 import app.sheket.screening.ScreenedCallLog
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -49,7 +50,7 @@ class SheketApp : Application() {
     val reportClient: ReportClient by lazy {
         ReportClient(
             installId = { installId.get() },
-            isReported = { number -> screenedCallLog.entries().any { it.number == number && it.reported } },
+            isReported = { number -> number in ScreenedCallCodec.reportedNumbers(screenedCallLog.entries()) },
             markReported = screenedCallLog::markReported,
         )
     }
