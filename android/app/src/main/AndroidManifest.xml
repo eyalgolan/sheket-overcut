@@ -4,6 +4,12 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <!-- Spec section 7: the refresh job has a network constraint so it never
+         runs offline. JobScheduler needs ACCESS_NETWORK_STATE for that, or
+         scheduling it in SheketApp.onCreate throws a SecurityException. It is
+         a normal permission, so there is no prompt. -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
     <!-- Spec section 4: contacts are never requested. This strips READ_CONTACTS
          even if a dependency merges it in. -->
     <uses-permission
