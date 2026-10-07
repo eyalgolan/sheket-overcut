@@ -631,29 +631,25 @@ run "function_url_permissions_are_left_to_the_provider" {
 
   # Deployments that imported the statements must keep them: each removed
   # block drops the address from state without destroying the live
-  # permission. The \b stops report_url from matching report_url_invoke.
+  # permission. Each regex matches one whole block, so destroy = false is
+  # tied to its own removed block. The \s+ after the name stops report_url
+  # from matching report_url_invoke. The match deliberately needs the
+  # terraform fmt layout: a comment inside the block, or lifecycle before
+  # from, fails it.
   assert {
     condition = length(regexall(
-      "removed\\s*\\{[^}]*from\\s*=\\s*aws_lambda_permission\\.report_url\\b",
+      "removed\\s*\\{\\s*from\\s*=\\s*aws_lambda_permission\\.report_url\\s+lifecycle\\s*\\{\\s*destroy\\s*=\\s*false\\s*\\}\\s*\\}",
       file("${path.module}/lambda.tf")
     )) == 1
-    error_message = "lambda.tf must keep a removed block for aws_lambda_permission.report_url (issue #56)."
+    error_message = "lambda.tf must keep a removed block for aws_lambda_permission.report_url with lifecycle { destroy = false } (issue #56)."
   }
 
   assert {
     condition = length(regexall(
-      "removed\\s*\\{[^}]*from\\s*=\\s*aws_lambda_permission\\.report_url_invoke\\b",
+      "removed\\s*\\{\\s*from\\s*=\\s*aws_lambda_permission\\.report_url_invoke\\s+lifecycle\\s*\\{\\s*destroy\\s*=\\s*false\\s*\\}\\s*\\}",
       file("${path.module}/lambda.tf")
     )) == 1
-    error_message = "lambda.tf must keep a removed block for aws_lambda_permission.report_url_invoke (issue #56)."
-  }
-
-  assert {
-    condition = length(regexall(
-      "destroy\\s*=\\s*false",
-      file("${path.module}/lambda.tf")
-    )) == 2
-    error_message = "Both removed blocks in lambda.tf must set destroy = false so existing deployments keep the live statements (issue #56)."
+    error_message = "lambda.tf must keep a removed block for aws_lambda_permission.report_url_invoke with lifecycle { destroy = false } (issue #56)."
   }
 }
 
