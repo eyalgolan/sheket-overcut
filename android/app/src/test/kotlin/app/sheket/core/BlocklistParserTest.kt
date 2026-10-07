@@ -2,6 +2,7 @@ package app.sheket.core
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
@@ -11,6 +12,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import java.math.BigInteger
 
 class BlocklistParserTest {
 
@@ -58,6 +60,19 @@ class BlocklistParserTest {
     }
 
     @Test
+    fun numericOffsetAndDuplicateEntriesParse() {
+        val doc = JsonObject(
+            base + mapOf(
+                "generated_at" to JsonPrimitive("2026-10-06T15:00:00+03:00"),
+                "call_numbers" to strings("+972555001234", "+972555001234"),
+                "sms_senders" to strings(),
+            ),
+        )
+        val list = parseOk(doc.bytes())
+        assertEquals(setOf("+972555001234"), list.callNumbers)
+    }
+
+    @Test
     fun invalidDocumentsAreRejected() {
         val firstKeyword = base.getValue("sms_keywords").jsonArray[0].jsonObject
         assertTrue("test list needs sms_senders to mutate", base.getValue("sms_senders").jsonArray.isNotEmpty())
@@ -92,6 +107,28 @@ class BlocklistParserTest {
             add("version 1.0" to versionDouble.toByteArray(Charsets.UTF_8))
             add("generated_at without seconds" to withKey("generated_at", JsonPrimitive("2026-10-06T12:00Z")).bytes())
             add("generated_at impossible date" to withKey("generated_at", JsonPrimitive("2026-02-30T12:00:00Z")).bytes())
+            add("schema as string" to withKey("schema", JsonPrimitive("1")).bytes())
+            add("version as string" to withKey("version", JsonPrimitive("1791201600")).bytes())
+            add("version as boolean" to withKey("version", JsonPrimitive(true)).bytes())
+            add("version null" to withKey("version", JsonNull).bytes())
+            add("version beyond Long" to withKey("version", JsonPrimitive(BigInteger("9223372036854775808"))).bytes())
+            add("generated_at as number" to withKey("generated_at", JsonPrimitive(1791201600)).bytes())
+            add("generated_at month 13" to withKey("generated_at", JsonPrimitive("2026-13-01T12:00:00Z")).bytes())
+            add("generated_at without offset" to withKey("generated_at", JsonPrimitive("2026-10-06T12:00:00")).bytes())
+            add("call_numbers not an array" to withKey("call_numbers", JsonPrimitive("+972555001234")).bytes())
+            add("call_numbers number item" to withKey("call_numbers", JsonArray(listOf(JsonPrimitive(972555001234L)))).bytes())
+            add("call_numbers non-ASCII digits" to withKey("call_numbers", strings("+97255500123٤")).bytes())
+            add("sms_keywords not an array" to withKey("sms_keywords", JsonObject(emptyMap())).bytes())
+            add("keyword not an object" to withKey("sms_keywords", JsonArray(listOf(JsonPrimitive("x")))).bytes())
+            add(
+                "keyword missing strength" to
+                    withKey("sms_keywords", keywordsWithFirst(JsonObject(firstKeyword - "strength"))).bytes(),
+            )
+            add(
+                "keyword empty text" to
+                    withKey("sms_keywords", keywordsWithFirst(JsonObject(firstKeyword + ("text" to JsonPrimitive(""))))).bytes(),
+            )
+            add("sms_senders number item" to withKey("sms_senders", JsonArray(listOf(JsonPrimitive(1)))).bytes())
             add("root is an array" to "[]".toByteArray())
             add("root is a string" to "\"x\"".toByteArray())
             add("root is a number" to "1".toByteArray())

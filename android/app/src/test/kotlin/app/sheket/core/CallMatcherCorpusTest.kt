@@ -3,6 +3,7 @@ package app.sheket.core
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -44,5 +45,53 @@ class CallMatcherCorpusTest {
         if (failures.isNotEmpty()) {
             fail("${failures.size} calls case(s) failed:\n" + failures.joinToString("\n"))
         }
+    }
+
+    private fun testListMatcher(): CallMatcher {
+        val parsed = BlocklistParser.parse(ContractFiles.bytes("test-blocklist.json"))
+        assertTrue("test-blocklist.json must parse: $parsed", parsed is ParseResult.Ok)
+        return CallMatcher((parsed as ParseResult.Ok).blocklist)
+    }
+
+    @Test
+    fun secondTestPrefixBlocks() {
+        // No corpus case exercises the +9725552 prefix of test-blocklist.json.
+        val matcher = testListMatcher()
+        assertTrue(matcher.shouldBlock("055-521-2345"))
+        assertTrue(matcher.shouldBlock("+972555212345"))
+        assertFalse(matcher.shouldBlock("0555312345"))
+    }
+
+    @Test
+    fun nonE164CallersAreNeverBlocked() {
+        val matcher = testListMatcher()
+        val never = listOf(
+            null,
+            "",
+            "Unknown",
+            "100",
+            "*6000",
+            "tel:0555001234",
+            "00972555001234",
+            "٠٥٥٥٠٠١٢٣٤",
+        )
+        val blocked = never.filter { matcher.shouldBlock(it) }
+        assertTrue("blocked non-E.164 callers: $blocked", blocked.isEmpty())
+    }
+
+    @Test
+    fun prefixLengthsFiveToFifteenAreChecked() {
+        val list = Blocklist(
+            version = 1,
+            generatedAt = "2026-10-06T12:00:00Z",
+            callNumbers = emptySet(),
+            callPrefixes = setOf("+1234", "+98765432109876", "+972"),
+        )
+        val matcher = CallMatcher(list)
+        assertTrue("shortest valid prefix (5 chars)", matcher.shouldBlock("+12345678"))
+        assertTrue("longest valid prefix (15 chars) equal to the number", matcher.shouldBlock("+98765432109876"))
+        // A 4-character entry cannot pass the schema, so the matcher never looks at it.
+        assertFalse(matcher.shouldBlock("+972555001234"))
+        assertFalse(matcher.shouldBlock("+1235678"))
     }
 }

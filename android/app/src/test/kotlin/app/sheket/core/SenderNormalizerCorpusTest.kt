@@ -36,6 +36,54 @@ class SenderNormalizerCorpusTest {
     }
 
     @Test
+    fun edgeCasesMatchBackendNormalizeSender() {
+        // Expected values were produced by backend/src/sheket/normalize.py normalize_sender.
+        val cases = listOf(
+            null to null,
+            "" to null,
+            "   " to null,
+            "0555001234\r\n" to "+972555001234",
+            " 0555001234　" to "+972555001234",
+            "+972555001234 " to "+972555001234",
+            // Non-ASCII digits are never phone-like: they stay a sender ID, so never E.164.
+            "٠٥٥٥٠٠١٢٣٤" to
+                "٠٥٥٥٠٠١٢٣٤",
+            "０５５５００１２３４" to
+                "０５５５００１２３４",
+            // Zero-width space is not isspace(), so it is neither trimmed nor rejected.
+            "​0555001234" to "​0555001234",
+            "+972 (0)55 500 1234" to "+9720555001234",
+            "Unknown" to "unknown",
+            "tel:0555001234" to "tel:0555001234",
+            "00972555001234" to null,
+            "1-0-0" to "100",
+            "*6000" to "*6000",
+            "Bank Leumi" to null,
+            "Bank　Leumi" to null,
+            "ABC " to "abc",
+            "a".repeat(20) to "a".repeat(20),
+            "a".repeat(21) to null,
+        )
+        val failures = cases.mapNotNull { (input, expected) ->
+            val actual = SenderNormalizer.normalize(input)
+            if (actual == expected) null else "normalize(${input?.let { "\"$it\"" }}): expected $expected, got $actual"
+        }
+        if (failures.isNotEmpty()) {
+            fail("${failures.size} edge case(s) differ from the backend:\n" + failures.joinToString("\n"))
+        }
+    }
+
+    @Test
+    fun isE164RequiresAFullMatch() {
+        assertEquals(true, SenderNormalizer.isE164("+972555001234"))
+        assertEquals(false, SenderNormalizer.isE164("+972555001234\n"))
+        assertEquals(false, SenderNormalizer.isE164("972555001234"))
+        assertEquals(false, SenderNormalizer.isE164("+0555001234"))
+        assertEquals(false, SenderNormalizer.isE164("+1234567890123456"))
+        assertEquals(false, SenderNormalizer.isE164(null))
+    }
+
+    @Test
     fun whitespaceIsExactlyPythonIsspace() {
         val expected = setOf(
             '\u0009', '\u000A', '\u000B', '\u000C', '\u000D',
