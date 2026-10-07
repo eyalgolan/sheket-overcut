@@ -89,6 +89,13 @@ run "schedule_runs_aggregate_every_15_minutes" {
     error_message = "The schedule must be enabled."
   }
 
+  # The deprecated `is_enabled` can still disable the rule independently of
+  # `state`. It is optional and not computed, so it is null when unset.
+  assert {
+    condition     = aws_cloudwatch_event_rule.aggregate.is_enabled != false
+    error_message = "The schedule must not be disabled through the deprecated is_enabled."
+  }
+
   assert {
     condition     = aws_cloudwatch_event_target.aggregate.rule == aws_cloudwatch_event_rule.aggregate.name
     error_message = "The target must be attached to the aggregate rule."
@@ -153,6 +160,17 @@ run "exactly_five_alarms_and_no_new_iam_roles" {
       join("\n", [file("${path.module}/schedule.tf"), file("${path.module}/alarms.tf")])
     )) == 0
     error_message = "schedule.tf and alarms.tf must not add IAM resources (AC-5)."
+  }
+
+  # The check above only covers two files. Count role declarations across the
+  # whole module so a role added anywhere else is caught too. The closing quote
+  # after `aws_iam_role` stops aws_iam_role_policy from matching.
+  assert {
+    condition = length(regexall(
+      "resource\\s+\"aws_iam_role\"",
+      join("\n", [for f in fileset(path.module, "*.tf") : file("${path.module}/${f}")])
+    )) == 2
+    error_message = "The module must declare exactly two IAM roles, report and aggregate in iam.tf (AC-5)."
   }
 }
 
