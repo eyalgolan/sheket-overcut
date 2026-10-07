@@ -1,6 +1,159 @@
 {
   "sourceLanguage" : "he",
   "strings" : {
+    "about.contacts.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sheket never sees messages from your contacts. It does not see your calls either: iOS checks each call against the list."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שקט אף פעם לא רואה הודעות מאנשי הקשר שלך. גם את השיחות שלך הוא לא רואה: iOS בודק כל שיחה מול הרשימה."
+          }
+        }
+      }
+    },
+    "about.privacy.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy notice: placeholder text, to be replaced with the final wording."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הודעת פרטיות: טקסט זמני, שיוחלף בנוסח הסופי."
+          }
+        }
+      }
+    },
+    "about.report.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A report sends a random install ID that is not tied to you, your phone number or an advertising ID, the platform, the type (SMS or call), the sender, the message text only if you choose to include it, and the app version."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "דיווח שולח מזהה התקנה אקראי שאינו קשור אליך, למספר הטלפון שלך או למזהה פרסום, את הפלטפורמה, את הסוג (SMS או שיחה), את השולח, את תוכן ההודעה רק אם בחרת לצרף אותו, ואת גרסת היישום."
+          }
+        }
+      }
+    },
+    "about.report.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reports"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "דיווחים"
+          }
+        }
+      }
+    },
+    "about.retention.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reports are deleted after 30 days. Your IP address is not stored."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הדיווחים נמחקים לאחר 30 יום. כתובת ה-IP שלך לא נשמרת."
+          }
+        }
+      }
+    },
+    "about.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אודות"
+          }
+        }
+      }
+    },
+    "about.version %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "גרסה %@"
+          }
+        }
+      }
+    },
+    "about.what.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Election SMS from senders who are not in your contacts are moved to the Junk tab, not deleted. Calls from numbers on the election list are blocked. The list is updated from the server."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הודעות SMS של בחירות משולחים שאינם באנשי הקשר שלך מועברות לתיקיית הזבל, ולא נמחקות. שיחות ממספרים שברשימת הבחירות נחסמות. הרשימה מתעדכנת מהשרת."
+          }
+        }
+      }
+    },
+    "about.what.header" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What Sheket does"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מה שקט עושה"
+          }
+        }
+      }
+    },
     "app.title" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -14,6 +167,278 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "שקט"
+          }
+        }
+      }
+    },
+    "report.error.config" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reporting is unavailable in this build."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הדיווח אינו זמין בגרסה זו."
+          }
+        }
+      }
+    },
+    "report.error.noURL" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reporting is not configured in this build."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הדיווח לא הוגדר בגרסה זו."
+          }
+        }
+      }
+    },
+    "report.error.sender" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This sender can't be reported."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא ניתן לדווח על השולח הזה."
+          }
+        }
+      }
+    },
+    "report.error.text" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The message text is too long (1,000 characters at most)."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תוכן ההודעה ארוך מדי (עד 1,000 תווים)."
+          }
+        }
+      }
+    },
+    "report.includeText" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include the message text"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "צירוף תוכן ההודעה"
+          }
+        }
+      }
+    },
+    "report.kind.call" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Call"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שיחה"
+          }
+        }
+      }
+    },
+    "report.kind.callUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Call reports need a full phone number."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "דיווח על שיחה דורש מספר טלפון מלא."
+          }
+        }
+      }
+    },
+    "report.kind.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סוג"
+          }
+        }
+      }
+    },
+    "report.kind.sms" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SMS"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SMS"
+          }
+        }
+      }
+    },
+    "report.result.notSent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not sent, try again later"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא נשלח, יש לנסות שוב מאוחר יותר"
+          }
+        }
+      }
+    },
+    "report.result.rateLimited" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Too many reports, try again later"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "יותר מדי דיווחים, יש לנסות שוב מאוחר יותר"
+          }
+        }
+      }
+    },
+    "report.result.sent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sent"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נשלח"
+          }
+        }
+      }
+    },
+    "report.send" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שליחה"
+          }
+        }
+      }
+    },
+    "report.sender.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sender (paste the number or name)"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שולח (יש להדביק את המספר או השם)"
+          }
+        }
+      }
+    },
+    "report.text.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Message text"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תוכן ההודעה"
+          }
+        }
+      }
+    },
+    "report.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Report"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "דיווח"
           }
         }
       }
