@@ -38,7 +38,7 @@ import logging
 import os
 import re
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import NamedTuple
@@ -433,31 +433,38 @@ def serialize_blocklist(doc: dict) -> str:
     return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
 
 
-def _query_all(**kwargs) -> list[dict]:
-    """Run a DynamoDB query over every page; return the items as plain dicts.
+def _query_items(**kwargs) -> Iterator[dict]:
+    """Run a DynamoDB query over every page; yield the items as plain dicts.
 
-    ``LastEvaluatedKey`` is followed as ``ExclusiveStartKey`` until it is
-    absent; the caller's ``kwargs`` are not mutated. Only string (``S``)
-    attributes are kept, as ``{name: value}``; any other attribute is dropped,
-    so a malformed item reaches the builder with a field missing and is
-    logged and skipped there, never raised here.
+    Each item is yielded as its page arrives, so only one page is held in
+    memory at a time. ``LastEvaluatedKey`` is followed as
+    ``ExclusiveStartKey`` until it is absent; the caller's ``kwargs`` are not
+    mutated. Only string (``S``) attributes are kept, as ``{name: value}``;
+    any other attribute is dropped, so a malformed item reaches the builder
+    with a field missing and is logged and skipped there, never raised here.
     """
     params = dict(kwargs)
-    items: list[dict] = []
     while True:
         page = _dynamodb().query(**params)
         for raw in page.get("Items", []):
-            items.append(
-                {
-                    name: value["S"]
-                    for name, value in raw.items()
-                    if isinstance(value, dict) and isinstance(value.get("S"), str)
-                }
-            )
+            yield {
+                name: value["S"]
+                for name, value in raw.items()
+                if isinstance(value, dict) and isinstance(value.get("S"), str)
+            }
         last_key = page.get("LastEvaluatedKey")
         if not last_key:
-            return items
+            return
         params["ExclusiveStartKey"] = last_key
+
+
+def _query_all(**kwargs) -> list[dict]:
+    """Return every item of a DynamoDB query as a list.
+
+    The list form of ``_query_items``, for small result sets such as the
+    overrides.
+    """
+    return list(_query_items(**kwargs))
 
 
 def _load_reports(table: str, now: int) -> list[dict]:
