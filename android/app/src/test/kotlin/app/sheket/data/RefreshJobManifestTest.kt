@@ -92,7 +92,8 @@ class RefreshJobManifestTest {
         assertNotNull("SheketApp.kt has no onCreate", onCreate)
         assertTrue("SheketApp.onCreate must schedule the refresh", "RefreshJobService.schedule(this)" in onCreate!!)
 
-        val service = elements("service").singleOrNull { it.getAttributeNS(ANDROID_NS, "name") == ".data.RefreshJobService" }
+        val serviceName = ".data.RefreshJobService"
+        val service = elements("service").singleOrNull { it.getAttributeNS(ANDROID_NS, "name") == serviceName }
         assertNotNull("RefreshJobService is not declared in the manifest", service)
         assertEquals("android.permission.BIND_JOB_SERVICE", service!!.getAttributeNS(ANDROID_NS, "permission"))
         assertEquals("false", service.getAttributeNS(ANDROID_NS, "exported"))
