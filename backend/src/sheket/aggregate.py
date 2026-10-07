@@ -506,3 +506,45 @@ def _load_overrides(table: str) -> list[dict]:
         ExpressionAttributeValues={":o": {"S": OVERRIDE_PK}},
         ProjectionExpression="sk",
     )
+
+
+def _load_previous(bucket: str) -> tuple[dict | None, int]:
+    """Read the published ``v1/blocklist.json``; return ``(doc, version)``.
+
+    A missing object (``NoSuchKey``) is the first run and gives ``(None, 0)``;
+    any other S3 error propagates, so the run fails and the published
+    blocklist stays in place. An object that is not strict UTF-8 JSON holding
+    an object also gives ``(None, 0)``, and a ``version`` that is not an
+    integer >= 0 is replaced by 0; both are logged with the reason only, never
+    the content. An unusable previous object therefore means the next run
+    always writes, and ``version = max(now, previous_version + 1)`` still
+    keeps the version increasing.
+    """
+    try:
+        response = _s3().get_object(Bucket=bucket, Key=BLOCKLIST_KEY)
+    except ClientError as e:
+        if e.response.get("Error", {}).get("Code") == "NoSuchKey":
+            logger.info("no previous blocklist: first run")
+            return None, 0
+        raise
+
+    body = response["Body"].read()
+    try:
+        doc = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError) as e:
+        logger.error("previous blocklist unusable: %s", type(e).__name__)
+        return None, 0
+    if not isinstance(doc, dict):
+        logger.error(
+            "previous blocklist unusable: not a JSON object (type=%s)",
+            type(doc).__name__,
+        )
+        return None, 0
+
+    version = doc.get("version")
+    if isinstance(version, int) and not isinstance(version, bool) and version >= 0:
+        return doc, version
+    logger.error(
+        "previous blocklist version invalid (type=%s); using 0", type(version).__name__
+    )
+    return doc, 0
