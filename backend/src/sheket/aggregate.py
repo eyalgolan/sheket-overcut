@@ -548,3 +548,34 @@ def _load_previous(bucket: str) -> tuple[dict | None, int]:
         "previous blocklist version invalid (type=%s); using 0", type(version).__name__
     )
     return doc, 0
+
+
+def _content(doc: dict) -> dict:
+    """Return a new dict of ``doc`` without ``version`` and ``generated_at``."""
+    return {k: v for k, v in doc.items() if k not in ("version", "generated_at")}
+
+
+def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
+    """Return True when ``new_doc`` must be written over ``previous_doc``.
+
+    Always on the first run (or an unusable previous object) and whenever the
+    content, everything except ``version`` and ``generated_at``, changed.
+    Unchanged content is rewritten only once the forced refresh is due.
+    """
+    if previous_doc is None or _content(new_doc) != _content(previous_doc):
+        return True
+
+    # The only code that depends on open owner Decision 5 (provisional 6-hour
+    # forced refresh, see FORCED_REFRESH). Dropping the refresh means deleting
+    # FORCED_REFRESH and this age check; unchanged content is then never
+    # rewritten. An unreadable generated_at forces a write.
+    generated = previous_doc.get("generated_at")
+    if not isinstance(generated, str):
+        return True
+    try:
+        generated_at = datetime.fromisoformat(generated)
+    except ValueError:
+        return True
+    if generated_at.tzinfo is None:
+        generated_at = generated_at.replace(tzinfo=timezone.utc)
+    return datetime.fromtimestamp(now, timezone.utc) - generated_at >= FORCED_REFRESH
