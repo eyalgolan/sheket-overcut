@@ -93,20 +93,20 @@ class BlocklistParserTest {
             add("extra top-level key" to withKey("extra", JsonPrimitive(1)).bytes())
             add(
                 "extra key in keyword object" to
-                    withKey("sms_keywords", keywordsWithFirst(JsonObject(firstKeyword + ("x" to JsonPrimitive("y"))))).bytes(),
+                    withKey("sms_keywords", keywordsWithFirst(JsonObject(firstKeyword + ("x" to JsonPrimitive("y")))))
+                        .bytes(),
             )
             add("call_numbers national format" to withKey("call_numbers", strings("0555001234")).bytes())
             add("call_numbers trailing newline" to withKey("call_numbers", strings("+972555001234\n")).bytes())
             add("call_prefixes too short" to withKey("call_prefixes", strings("+97")).bytes())
             add("empty sms_senders entry" to withKey("sms_senders", strings("")).bytes())
             add("empty sms_allow_senders entry" to withKey("sms_allow_senders", strings("")).bytes())
-            add(
-                "strength medium" to
-                    withKey("sms_keywords", keywordsWithFirst(JsonObject(firstKeyword + ("strength" to JsonPrimitive("medium"))))).bytes(),
-            )
+            val mediumKeyword = JsonObject(firstKeyword + ("strength" to JsonPrimitive("medium")))
+            add("strength medium" to withKey("sms_keywords", keywordsWithFirst(mediumKeyword)).bytes())
             add("version 1.0" to versionDouble.toByteArray(Charsets.UTF_8))
             add("generated_at without seconds" to withKey("generated_at", JsonPrimitive("2026-10-06T12:00Z")).bytes())
-            add("generated_at impossible date" to withKey("generated_at", JsonPrimitive("2026-02-30T12:00:00Z")).bytes())
+            val impossibleDate = JsonPrimitive("2026-02-30T12:00:00Z")
+            add("generated_at impossible date" to withKey("generated_at", impossibleDate).bytes())
             add("schema as string" to withKey("schema", JsonPrimitive("1")).bytes())
             add("version as string" to withKey("version", JsonPrimitive("1791201600")).bytes())
             add("version as boolean" to withKey("version", JsonPrimitive(true)).bytes())
@@ -116,8 +116,9 @@ class BlocklistParserTest {
             add("generated_at month 13" to withKey("generated_at", JsonPrimitive("2026-13-01T12:00:00Z")).bytes())
             add("generated_at without offset" to withKey("generated_at", JsonPrimitive("2026-10-06T12:00:00")).bytes())
             add("call_numbers not an array" to withKey("call_numbers", JsonPrimitive("+972555001234")).bytes())
-            add("call_numbers number item" to withKey("call_numbers", JsonArray(listOf(JsonPrimitive(972555001234L)))).bytes())
-            add("call_numbers non-ASCII digits" to withKey("call_numbers", strings("+97255500123٤")).bytes())
+            val numberItem = JsonArray(listOf(JsonPrimitive(972555001234L)))
+            add("call_numbers number item" to withKey("call_numbers", numberItem).bytes())
+            add("call_numbers non-ASCII digits" to withKey("call_numbers", strings("+97255500123\u0664")).bytes())
             add("sms_keywords not an array" to withKey("sms_keywords", JsonObject(emptyMap())).bytes())
             add("keyword not an object" to withKey("sms_keywords", JsonArray(listOf(JsonPrimitive("x")))).bytes())
             add(
@@ -126,7 +127,8 @@ class BlocklistParserTest {
             )
             add(
                 "keyword empty text" to
-                    withKey("sms_keywords", keywordsWithFirst(JsonObject(firstKeyword + ("text" to JsonPrimitive(""))))).bytes(),
+                    withKey("sms_keywords", keywordsWithFirst(JsonObject(firstKeyword + ("text" to JsonPrimitive("")))))
+                        .bytes(),
             )
             add("sms_senders number item" to withKey("sms_senders", JsonArray(listOf(JsonPrimitive(1)))).bytes())
             add("root is an array" to "[]".toByteArray())

@@ -29,9 +29,8 @@ object ContractFiles {
         return f.readBytes()
     }
 
-    fun json(name: String): JsonObject =
-        Json.parseToJsonElement(bytes(name).toString(Charsets.UTF_8)) as? JsonObject
-            ?: throw IllegalStateException("contract/$name is not a JSON object")
+    fun json(name: String): JsonObject = Json.parseToJsonElement(bytes(name).toString(Charsets.UTF_8)) as? JsonObject
+        ?: throw IllegalStateException("contract/$name is not a JSON object")
 
     /** A section of `corpus.json`; fails if it is missing or empty, so a test can never pass vacuously. */
     fun corpusSection(name: String): JsonArray {

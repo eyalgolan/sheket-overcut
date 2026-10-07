@@ -110,12 +110,11 @@ object BlocklistParser {
         )
     }
 
-    private fun decodeUtf8(bytes: ByteArray): String =
-        Charsets.UTF_8.newDecoder()
-            .onMalformedInput(CodingErrorAction.REPORT)
-            .onUnmappableCharacter(CodingErrorAction.REPORT)
-            .decode(ByteBuffer.wrap(bytes))
-            .toString()
+    private fun decodeUtf8(bytes: ByteArray): String = Charsets.UTF_8.newDecoder()
+        .onMalformedInput(CodingErrorAction.REPORT)
+        .onUnmappableCharacter(CodingErrorAction.REPORT)
+        .decode(ByteBuffer.wrap(bytes))
+        .toString()
 
     private fun isDateTime(s: String): Boolean {
         if (!GENERATED_AT.matches(s)) return false
@@ -127,26 +126,23 @@ object BlocklistParser {
         }
     }
 
-    private fun isKeywordArray(e: JsonElement): Boolean =
-        e is JsonArray && e.all { kw ->
-            kw is JsonObject &&
-                kw.keys == KEYWORD_KEYS &&
-                !kw.getValue("text").stringContent().isNullOrEmpty() &&
-                when (kw.getValue("strength").stringContent()) {
-                    "strong", "weak" -> true
-                    else -> false
-                }
-        }
+    private fun isKeywordArray(e: JsonElement): Boolean = e is JsonArray && e.all { kw ->
+        kw is JsonObject &&
+            kw.keys == KEYWORD_KEYS &&
+            !kw.getValue("text").stringContent().isNullOrEmpty() &&
+            when (kw.getValue("strength").stringContent()) {
+                "strong", "weak" -> true
+                else -> false
+            }
+    }
 
     /** The content of a JSON string, or null for any other element (including `null`). */
-    private fun JsonElement.stringContent(): String? =
-        (this as? JsonPrimitive)?.takeIf { it.isString }?.content
+    private fun JsonElement.stringContent(): String? = (this as? JsonPrimitive)?.takeIf { it.isString }?.content
 
     /** The literal of a JSON integer, or null for strings, `null`, booleans and non-integers. */
-    private fun JsonElement.integerContent(): String? =
-        (this as? JsonPrimitive)
-            ?.takeIf { it !is JsonNull && !it.isString && JSON_INTEGER.matches(it.content) }
-            ?.content
+    private fun JsonElement.integerContent(): String? = (this as? JsonPrimitive)
+        ?.takeIf { it !is JsonNull && !it.isString && JSON_INTEGER.matches(it.content) }
+        ?.content
 
     /** The strings of a JSON array whose items are all strings passing [valid], or null. */
     private inline fun JsonElement.stringArray(valid: (String) -> Boolean): List<String>? {

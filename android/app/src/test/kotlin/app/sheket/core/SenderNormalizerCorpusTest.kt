@@ -43,24 +43,24 @@ class SenderNormalizerCorpusTest {
             "" to null,
             "   " to null,
             "0555001234\r\n" to "+972555001234",
-            " 0555001234　" to "+972555001234",
-            "+972555001234 " to "+972555001234",
+            "\u20000555001234\u3000" to "+972555001234",
+            "+972555001234\u2028" to "+972555001234",
             // Non-ASCII digits are never phone-like: they stay a sender ID, so never E.164.
-            "٠٥٥٥٠٠١٢٣٤" to
-                "٠٥٥٥٠٠١٢٣٤",
-            "０５５５００１２３４" to
-                "０５５５００１２３４",
+            "\u0660\u0665\u0665\u0665\u0660\u0660\u0661\u0662\u0663\u0664" to
+                "\u0660\u0665\u0665\u0665\u0660\u0660\u0661\u0662\u0663\u0664",
+            "\uFF10\uFF15\uFF15\uFF15\uFF10\uFF10\uFF11\uFF12\uFF13\uFF14" to
+                "\uFF10\uFF15\uFF15\uFF15\uFF10\uFF10\uFF11\uFF12\uFF13\uFF14",
             // Zero-width space is not isspace(), so it is neither trimmed nor rejected.
-            "​0555001234" to "​0555001234",
+            "\u200B0555001234" to "\u200B0555001234",
             "+972 (0)55 500 1234" to "+9720555001234",
             "Unknown" to "unknown",
             "tel:0555001234" to "tel:0555001234",
             "00972555001234" to null,
             "1-0-0" to "100",
             "*6000" to "*6000",
-            "Bank Leumi" to null,
-            "Bank　Leumi" to null,
-            "ABC " to "abc",
+            "Bank\u00A0Leumi" to null,
+            "Bank\u3000Leumi" to null,
+            "ABC\u1680" to "abc",
             "a".repeat(20) to "a".repeat(20),
             "a".repeat(21) to null,
         )

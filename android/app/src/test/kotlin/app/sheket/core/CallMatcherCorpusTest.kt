@@ -73,7 +73,7 @@ class CallMatcherCorpusTest {
             "*6000",
             "tel:0555001234",
             "00972555001234",
-            "٠٥٥٥٠٠١٢٣٤",
+            "\u0660\u0665\u0665\u0665\u0660\u0660\u0661\u0662\u0663\u0664",
         )
         val blocked = never.filter { matcher.shouldBlock(it) }
         assertTrue("blocked non-E.164 callers: $blocked", blocked.isEmpty())
