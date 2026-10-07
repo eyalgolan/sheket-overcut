@@ -103,8 +103,7 @@ class StatusActivity : Activity() {
         }
     }
 
-    private fun isRoleHeld(): Boolean =
-        roleManager?.isRoleHeld(RoleManager.ROLE_CALL_SCREENING) == true
+    private fun isRoleHeld(): Boolean = roleManager?.isRoleHeld(RoleManager.ROLE_CALL_SCREENING) == true
 
     // Framework result API on purpose: no AndroidX (decision 6).
     @Suppress("DEPRECATION")
@@ -223,11 +222,7 @@ class StatusActivity : Activity() {
         }.getOrDefault(generatedAt)
     }
 
-    private data class StatusSnapshot(
-        val summary: BlocklistSummary?,
-        val stale: StaleLine,
-        val blockedCount: Int,
-    )
+    private data class StatusSnapshot(val summary: BlocklistSummary?, val stale: StaleLine, val blockedCount: Int)
 
     private companion object {
         const val REQUEST_ROLE = 1

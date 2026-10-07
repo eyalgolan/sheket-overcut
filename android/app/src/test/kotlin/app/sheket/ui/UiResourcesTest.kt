@@ -116,7 +116,8 @@ class UiResourcesTest {
         val problems = mutableListOf<String>()
         forEachElement(manifest()) { el ->
             val label = el.getAttributeNS(ANDROID_NS, "label")
-            if (label.isNotEmpty() && !label.startsWith("@string/")) problems += "<${el.tagName}> android:label=\"$label\""
+            val hardCoded = label.isNotEmpty() && !label.startsWith("@string/")
+            if (hardCoded) problems += "<${el.tagName}> android:label=\"$label\""
         }
         if (problems.isNotEmpty()) fail("hard-coded manifest labels:\n" + problems.joinToString("\n"))
     }
