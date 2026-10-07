@@ -697,9 +697,7 @@ def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
     return age >= FORCED_REFRESH
 
 
-def _emit_success(
-    written: bool, doc: dict, capped: bool, function_name: str
-) -> None:
+def _emit_success(written: bool, doc: dict, capped: bool, function_name: str) -> None:
     """Print one CloudWatch Embedded Metric Format line for a successful run.
 
     The metrics are ``AggregateSucceeded = 1`` and ``ReportReadCapped`` (``1``
