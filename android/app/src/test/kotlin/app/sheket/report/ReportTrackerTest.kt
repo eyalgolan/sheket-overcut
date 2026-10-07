@@ -76,10 +76,10 @@ class ReportTrackerTest {
     fun attachedListenerGetsEveryResult() {
         val seen = mutableListOf<ReportOutcome>()
         tracker.addListener { seen += it }
-        answer = { ReportOutcome.RateLimited }
+        // Sends run at drain(), so the answer is chosen by number.
+        answer = { if (it == NUMBER) ReportOutcome.RateLimited else ReportOutcome.Refused }
         tracker.start("a", NUMBER)
-        answer = { ReportOutcome.Refused }
-        tracker.start("b", NUMBER)
+        tracker.start("b", OTHER_NUMBER)
         drain()
         assertEquals(listOf(ReportOutcome.RateLimited, ReportOutcome.Refused), seen)
     }
@@ -115,5 +115,6 @@ class ReportTrackerTest {
     private companion object {
         // Test-only value; any E.164 string works, since send is faked.
         const val NUMBER = "+97255500999"
+        const val OTHER_NUMBER = "+97255500998"
     }
 }
