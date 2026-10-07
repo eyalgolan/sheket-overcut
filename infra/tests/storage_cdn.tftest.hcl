@@ -40,6 +40,42 @@ mock_provider "aws" {
       domain_name = "d-test.example"
     }
   }
+
+  # The mocked aws_iam_policy_document.json is a random string, which
+  # aws_iam_role and aws_iam_role_policy reject as invalid JSON. Give the iam.tf
+  # documents a syntactically valid placeholder; tests assert on their
+  # statement blocks instead.
+  override_data {
+    target = data.aws_iam_policy_document.lambda_assume
+    values = {
+      json = "{\"Version\":\"2012-10-17\",\"Statement\":[]}"
+    }
+  }
+
+  override_data {
+    target = data.aws_iam_policy_document.report
+    values = {
+      json = "{\"Version\":\"2012-10-17\",\"Statement\":[]}"
+    }
+  }
+
+  override_data {
+    target = data.aws_iam_policy_document.aggregate
+    values = {
+      json = "{\"Version\":\"2012-10-17\",\"Statement\":[]}"
+    }
+  }
+}
+
+# lambda.tf zips backend/build/layer, which only exists after
+# backend/scripts/build_layer.sh has run. Override the data source so these
+# tests run without a built layer.
+override_data {
+  target = data.archive_file.layer
+  values = {
+    output_path         = "build/layer.zip"
+    output_base64sha256 = "bGF5ZXItdGVzdA=="
+  }
 }
 
 run "bucket_is_private_encrypted_and_versioned" {
