@@ -102,9 +102,15 @@ resource "aws_lambda_function" "aggregate" {
   source_code_hash = data.archive_file.code.output_base64sha256
   layers           = [aws_lambda_layer_version.runtime.arn]
 
-  # Memory and timeout are provisional values from the design.
-  memory_size                    = 512
-  timeout                        = 60
+  # Sized from a local synthetic run of the read -> build -> validate path at
+  # the per-run cap of 1M reports, worst shape (every report a distinct
+  # sender): peak RSS 884 MB, 18 s. memory_size is the next step above 1.5x
+  # the peak; timeout is READ_TIME_BUDGET + 60 s. The cap is set by
+  # MAX_REPORTS_PER_RUN and READ_TIME_BUDGET in backend/src/sheket/aggregate.py:
+  # if either changes, re-measure and keep timeout above READ_TIME_BUDGET plus
+  # a margin.
+  memory_size                    = 1536
+  timeout                        = 300
   reserved_concurrent_executions = 1
 
   environment {

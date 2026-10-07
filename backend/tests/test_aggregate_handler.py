@@ -412,20 +412,21 @@ def test_eight_day_partitions_are_queried_with_the_projection(recorder):
     ]
     days = [q["ExpressionAttributeValues"][":pk"]["S"] for q in report_queries]
     assert days == [
-        f"R#{(NOW_DT - timedelta(days=d)).strftime('%Y-%m-%d')}"
-        for d in range(7, -1, -1)
-    ]
+        f"R#{(NOW_DT - timedelta(days=d)).strftime('%Y-%m-%d')}" for d in range(8)
+    ]  # newest first
     for q in report_queries:
         assert q["TableName"] == TABLE_NAME
         assert q["ProjectionExpression"] == (
             "kind, sender, install_id, net_hash, received_at"
         )
-    # Only the oldest partition is narrowed by the cutoff.
-    assert report_queries[0]["KeyConditionExpression"] == "pk = :pk AND sk >= :cut"
-    assert report_queries[0]["ExpressionAttributeValues"][":cut"] == {
+        # Newest first within each partition too.
+        assert q["ScanIndexForward"] is False
+    # Only the oldest partition, queried last, is narrowed by the cutoff.
+    assert report_queries[-1]["KeyConditionExpression"] == "pk = :pk AND sk >= :cut"
+    assert report_queries[-1]["ExpressionAttributeValues"][":cut"] == {
         "S": "2026-09-29T12:00:00.000Z"
     }
-    for q in report_queries[1:]:
+    for q in report_queries[:-1]:
         assert q["KeyConditionExpression"] == "pk = :pk"
         assert ":cut" not in q["ExpressionAttributeValues"]
 
@@ -449,8 +450,9 @@ def test_always_eight_partitions_at_day_boundaries(recorder, clock, now_dt):
         if ":pk" in q["ExpressionAttributeValues"]
     ]
     assert len(days) == 8
-    assert days[0] == f"R#{(now_dt - WINDOW).strftime('%Y-%m-%d')}"
-    assert days[-1] == f"R#{now_dt.strftime('%Y-%m-%d')}"
+    # Newest first: today's partition, then back to the cutoff's day.
+    assert days[0] == f"R#{now_dt.strftime('%Y-%m-%d')}"
+    assert days[-1] == f"R#{(now_dt - WINDOW).strftime('%Y-%m-%d')}"
 
 
 def test_overrides_are_queried_from_the_override_partition(recorder):
@@ -472,7 +474,7 @@ def test_overrides_are_queried_from_the_override_partition(recorder):
 def test_projection_drops_every_other_report_attribute(aws):
     ddb, _ = aws
     put_report(ddb, "sms", SMS, 0, NET_A, NOW_DT - timedelta(hours=1), text="Hi")
-    loaded = aggregate._load_reports(TABLE_NAME, NOW)
+    loaded = list(aggregate._load_reports(TABLE_NAME, NOW))
     assert loaded == [
         {
             "kind": "sms",
@@ -1231,11 +1233,16 @@ def test_successful_run_prints_exactly_one_emf_line(aws, capsys):
         {
             "Namespace": "Sheket",
             "Dimensions": [["Function"]],
-            "Metrics": [{"Name": "AggregateSucceeded", "Unit": "Count"}],
+            "Metrics": [
+                {"Name": "AggregateSucceeded", "Unit": "Count"},
+                {"Name": "ReportReadCapped", "Unit": "Count"},
+            ],
         }
     ]
     assert line["Function"] == "aggregate"
     assert line["AggregateSucceeded"] == 1
+    # An uncapped run still emits the flag, as 0, so the alarm sees data.
+    assert line["ReportReadCapped"] == 0
     assert line["written"] is True
     assert isinstance(line["_aws"]["Timestamp"], int)
     assert line["_aws"]["Timestamp"] > 1_000_000_000_000  # milliseconds
@@ -1253,6 +1260,7 @@ def test_emf_line_carries_counts_only(aws, capsys):
         "_aws",
         "Function",
         "AggregateSucceeded",
+        "ReportReadCapped",
         "written",
         "call_numbers",
         "sms_senders",
@@ -1266,6 +1274,7 @@ def test_each_run_prints_its_own_heartbeat(aws, clock, capsys):
     lines = emf_lines(capsys.readouterr().out)
     assert [line["written"] for line in lines] == [True, False]
     assert all(line["AggregateSucceeded"] == 1 for line in lines)
+    assert all(line["ReportReadCapped"] == 0 for line in lines)
 
 
 # --- AC-7: thresholds and names come from the environment ------------------------

@@ -13,7 +13,8 @@ point ``sheket.aggregate.handler``, runs on a schedule. It reads the last
 7 days of reports and the ``OVERRIDE`` items from DynamoDB and the previous
 ``v1/blocklist.json`` from S3, then builds -> validates -> serialises. It
 writes only when the content changed or the forced refresh is due, and prints
-one EMF ``AggregateSucceeded`` line per successful run. The contract files are
+one EMF line per successful run, carrying the ``AggregateSucceeded``
+heartbeat and the ``ReportReadCapped`` flag. The contract files are
 loaded at call time from the packaged ``sheket/contract/`` next to this module
 (design Phase 3.3).
 
@@ -24,6 +25,12 @@ Provisional values, named here in one place:
   hours old" from ``generated_at`` or from their last successful check.
   Android PR #42 measures from the last successful check; if that is
   confirmed, drop it.
+- The per-run report read cap (``MAX_REPORTS_PER_RUN``, ``READ_TIME_BUDGET``)
+  bounds memory and time under a report flood (issue #49). Reports are read
+  newest first, across day partitions and within each one, so a capped run
+  keeps the newest reports and drops the oldest. A capped run logs a warning
+  and emits ``ReportReadCapped = 1``, which the report-read-capped alarm
+  watches.
 
 Configuration comes from the environment, read at call time, never at import:
 
@@ -38,7 +45,7 @@ import logging
 import os
 import re
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Iterator
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import NamedTuple
@@ -72,7 +79,15 @@ FORCED_REFRESH = timedelta(hours=6)
 MAX_VERSION = (
     int(datetime(9999, 12, 31, 23, 59, 59, tzinfo=timezone.utc).timestamp()) - 1
 )
-# EMF heartbeat (`_emit_success`); the stale-list alarm (#8) watches it.
+# Most reports read per run (issue #49): about 100 IPv4 addresses x 60 reports
+# per hour x 168 hours in the window = 1.008M reports.
+MAX_REPORTS_PER_RUN = 1_000_000
+# Most seconds spent reading reports per run (issue #49), leaving the rest of
+# the Lambda timeout for building, validating and writing.
+READ_TIME_BUDGET = 240
+# EMF line (`_emit_success`): the stale-list alarm (#8) watches its
+# AggregateSucceeded heartbeat and the report-read-capped alarm its
+# ReportReadCapped flag.
 METRIC_NAMESPACE = "Sheket"
 FUNCTION_NAME = "aggregate"
 # Use with fullmatch only: an anchoring "$" would accept a trailing newline.
@@ -124,6 +139,15 @@ def _now() -> int:
     by tests.
     """
     return int(time.time())
+
+
+def _monotonic() -> float:
+    """Return a monotonic clock reading in seconds; patched by tests.
+
+    Separate from ``_now()``: ``_now()`` must be read once per run, and
+    wall-clock time must not drive the read time limit.
+    """
+    return time.monotonic()
 
 
 class _Config(NamedTuple):
@@ -267,7 +291,8 @@ def _published(
     grouped by ``(kind, sender)``, and a group is published when it has at
     least ``min_installs`` distinct ``install_id`` values and at least
     ``min_networks`` distinct ``net_hash`` values, so one install reporting
-    many times counts once.
+    many times counts once. A group stops being counted once it qualifies,
+    which bounds memory under a flood of reports for one sender.
 
     A malformed report is logged and skipped, never raised. Logs carry only
     the reason and the kind, never the sender, install ID or network hash.
@@ -276,6 +301,7 @@ def _published(
     cutoff = now_dt - WINDOW
     installs: dict[tuple[str, str], set[str]] = {}
     nets: dict[tuple[str, str], set[str]] = {}
+    qualified: set[tuple[str, str]] = set()
 
     for report in reports:
         if not isinstance(report, dict):
@@ -319,18 +345,24 @@ def _published(
         if received < cutoff:
             continue
         key = (kind, sender)
-        installs.setdefault(key, set()).add(report["install_id"])
-        nets.setdefault(key, set()).add(report["net_hash"])
+        if key in qualified:
+            continue
+        ids = installs.setdefault(key, set())
+        ids.add(report["install_id"])
+        key_nets = nets.setdefault(key, set())
+        key_nets.add(report["net_hash"])
+        if len(ids) >= min_installs and len(key_nets) >= min_networks:
+            qualified.add(key)
+            installs.pop(key)
+            nets.pop(key)
 
     call_set: set[str] = set()
     sms_set: set[str] = set()
-    for key, ids in installs.items():
-        if len(ids) >= min_installs and len(nets[key]) >= min_networks:
-            kind, sender = key
-            # Provisional answer to open owner Decision 1: kinds stay
-            # separate. A call group publishes only to call_set and an sms
-            # group only to sms_set.
-            (call_set if kind == "call" else sms_set).add(sender)
+    for kind, sender in qualified:
+        # Provisional answer to open owner Decision 1: kinds stay
+        # separate. A call group publishes only to call_set and an sms
+        # group only to sms_set.
+        (call_set if kind == "call" else sms_set).add(sender)
     return call_set, sms_set
 
 
@@ -439,72 +471,113 @@ def serialize_blocklist(doc: dict) -> str:
     return json.dumps(doc, indent=2, ensure_ascii=False) + "\n"
 
 
-def _query_all(**kwargs) -> list[dict]:
-    """Run a DynamoDB query over every page; return the items as plain dicts.
+def _query_items(**kwargs) -> Iterator[dict]:
+    """Run a DynamoDB query over every page; yield the items as plain dicts.
 
-    ``LastEvaluatedKey`` is followed as ``ExclusiveStartKey`` until it is
-    absent; the caller's ``kwargs`` are not mutated. Only string (``S``)
-    attributes are kept, as ``{name: value}``; any other attribute is dropped,
-    so a malformed item reaches the builder with a field missing and is
-    logged and skipped there, never raised here.
+    Each item is yielded as its page arrives, so only one page is held in
+    memory at a time. ``LastEvaluatedKey`` is followed as
+    ``ExclusiveStartKey`` until it is absent; the caller's ``kwargs`` are not
+    mutated. Only string (``S``) attributes are kept, as ``{name: value}``;
+    any other attribute is dropped, so a malformed item reaches the builder
+    with a field missing and is logged and skipped there, never raised here.
     """
     params = dict(kwargs)
-    items: list[dict] = []
     while True:
         page = _dynamodb().query(**params)
         for raw in page.get("Items", []):
-            items.append(
-                {
-                    name: value["S"]
-                    for name, value in raw.items()
-                    if isinstance(value, dict) and isinstance(value.get("S"), str)
-                }
-            )
+            yield {
+                name: value["S"]
+                for name, value in raw.items()
+                if isinstance(value, dict) and isinstance(value.get("S"), str)
+            }
         last_key = page.get("LastEvaluatedKey")
         if not last_key:
-            return items
+            return
         params["ExclusiveStartKey"] = last_key
 
 
-def _load_reports(table: str, now: int) -> list[dict]:
-    """Load the reports of the last ``WINDOW`` from their UTC day partitions.
+def _query_all(**kwargs) -> list[dict]:
+    """Return every item of a DynamoDB query as a list.
+
+    The list form of ``_query_items``, for small result sets such as the
+    overrides.
+    """
+    return list(_query_items(**kwargs))
+
+
+def _load_reports(
+    table: str, now: int, *, status: dict | None = None
+) -> Iterator[dict]:
+    """Stream the reports of the last ``WINDOW`` from their UTC day partitions.
 
     Reports are stored under ``pk = "R#YYYY-MM-DD"`` with ``sk`` starting with
-    ``received_at`` (``sheket.report``). Every day from the cutoff's day to
-    ``now``'s day is queried; the oldest partition is narrowed with
-    ``sk >= cutoff`` (``now`` is whole seconds, so a report exactly at the
-    cutoff is included). This only limits the read: the builder's
+    ``received_at`` (``sheket.report``). Every day from ``now``'s day back to
+    the cutoff's day is queried, newest first, and each partition is read in
+    descending ``sk`` order (``ScanIndexForward=False``), so reports arrive
+    newest first overall. The oldest partition, queried last, is narrowed
+    with ``sk >= cutoff`` (``now`` is whole seconds, so a report exactly at
+    the cutoff is included). This only limits the read: the builder's
     ``received_at`` check stays the exact window filter and also drops
     reports dated after ``now``. Logs carry counts only, never item contents.
+
+    Reports are yielded as they are read and the stream is read once. The read
+    stops with one warning after ``MAX_REPORTS_PER_RUN`` items (counted before
+    any validation, so malformed items count too) or ``READ_TIME_BUDGET``
+    seconds, timed from the first iteration. The run then continues with what
+    was read: senders counted so far still qualify, and the curated list and
+    the overrides are unaffected. The newest-first order is on purpose: a
+    capped run drops the oldest evidence, which is closest to expiring, and
+    keeps counting the senders reported most recently.
+
+    When ``status`` is given, ``status["capped"]`` is set to ``True`` if the
+    read stops early; it is left untouched otherwise. Read it only after the
+    stream has been drained.
     """
     now_dt = datetime.fromtimestamp(now, timezone.utc)
     cutoff = now_dt - WINDOW
     cut = cutoff.strftime("%Y-%m-%dT%H:%M:%S.000Z")
     first_day = cutoff.date()
     last_day = now_dt.date()
+    total = (last_day - first_day).days + 1
 
-    reports: list[dict] = []
+    start = _monotonic()
+    read = 0
     partitions = 0
-    day = first_day
-    while day <= last_day:
+    day = last_day
+    while day >= first_day:
         values = {":pk": {"S": f"R#{day.strftime('%Y-%m-%d')}"}}
         condition = "pk = :pk"
         if day == first_day:
             condition = "pk = :pk AND sk >= :cut"
             values[":cut"] = {"S": cut}
-        reports.extend(
-            _query_all(
-                TableName=table,
-                KeyConditionExpression=condition,
-                ExpressionAttributeValues=values,
-                ProjectionExpression="kind, sender, install_id, net_hash, received_at",
-            )
-        )
         partitions += 1
-        day += timedelta(days=1)
+        for item in _query_items(
+            TableName=table,
+            KeyConditionExpression=condition,
+            ExpressionAttributeValues=values,
+            ProjectionExpression="kind, sender, install_id, net_hash, received_at",
+            ScanIndexForward=False,
+        ):
+            elapsed = _monotonic() - start
+            if read >= MAX_REPORTS_PER_RUN or elapsed >= READ_TIME_BUDGET:
+                if status is not None:
+                    status["capped"] = True
+                logger.warning(
+                    "report read capped: %d reports, %d of %d day partitions, %.1f s",
+                    read,
+                    partitions,
+                    total,
+                    elapsed,
+                )
+                logger.info(
+                    "loaded %d reports from %d day partitions", read, partitions
+                )
+                return
+            read += 1
+            yield item
+        day -= timedelta(days=1)
 
-    logger.info("loaded %d reports from %d day partitions", len(reports), partitions)
-    return reports
+    logger.info("loaded %d reports from %d day partitions", read, partitions)
 
 
 def _load_overrides(table: str) -> list[dict]:
@@ -621,11 +694,13 @@ def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
     return age >= FORCED_REFRESH
 
 
-def _emit_success(written: bool, doc: dict) -> None:
-    """Print one CloudWatch Embedded Metric Format ``AggregateSucceeded`` line.
+def _emit_success(written: bool, doc: dict, capped: bool) -> None:
+    """Print one CloudWatch Embedded Metric Format line for a successful run.
 
-    The metric is ``AggregateSucceeded = 1`` in namespace ``Sheket`` with the
-    dimension ``Function = aggregate``; ``written``, ``call_numbers`` and
+    The metrics are ``AggregateSucceeded = 1`` and ``ReportReadCapped`` (``1``
+    when the report read hit ``MAX_REPORTS_PER_RUN`` or ``READ_TIME_BUDGET``,
+    else ``0``) in namespace ``Sheket`` with the dimension
+    ``Function = aggregate``; ``written``, ``call_numbers`` and
     ``sms_senders`` are plain properties (not metrics) for the audit trail.
     ``print``, not the logger: EMF needs the raw single-line JSON on stdout.
     Not emitted when the run raises, so the stale-list alarm (#8) sees a
@@ -638,12 +713,16 @@ def _emit_success(written: bool, doc: dict) -> None:
                 {
                     "Namespace": METRIC_NAMESPACE,
                     "Dimensions": [["Function"]],
-                    "Metrics": [{"Name": "AggregateSucceeded", "Unit": "Count"}],
+                    "Metrics": [
+                        {"Name": "AggregateSucceeded", "Unit": "Count"},
+                        {"Name": "ReportReadCapped", "Unit": "Count"},
+                    ],
                 }
             ],
         },
         "Function": FUNCTION_NAME,
         "AggregateSucceeded": 1,
+        "ReportReadCapped": 1 if capped else 0,
         "written": written,
         "call_numbers": len(doc["call_numbers"]),
         "sms_senders": len(doc["sms_senders"]),
@@ -654,9 +733,10 @@ def _emit_success(written: bool, doc: dict) -> None:
 def handler(event, context) -> None:
     """Aggregate Lambda entry point; ``event`` and ``context`` are unused.
 
-    Reads the configuration and the contract, takes the clock once, loads the
-    reports, the overrides and the previous blocklist, builds the new
-    document and validates it before anything is written. The document is
+    Reads the configuration and the contract, takes the clock once, opens a
+    lazy report stream, loads the overrides and the previous blocklist, then
+    builds the new document (``build_blocklist`` drains the report stream)
+    and validates it before anything is written. The document is
     written to ``v1/blocklist.json`` only when ``_should_write`` says so, and
     one log line records the outcome with counts only.
 
@@ -668,7 +748,8 @@ def handler(event, context) -> None:
     curated, schema = _load_contract()
     now = _now()
 
-    reports = _load_reports(cfg.table, now)
+    read_status = {"capped": False}
+    reports = _load_reports(cfg.table, now, status=read_status)
     overrides = _load_overrides(cfg.table)
     previous_doc, previous_version = _load_previous(cfg.bucket)
 
@@ -701,4 +782,5 @@ def handler(event, context) -> None:
         len(doc["call_numbers"]),
         len(doc["sms_senders"]),
     )
-    _emit_success(written, doc)
+    # build_blocklist has drained the report stream, so the flag is final.
+    _emit_success(written, doc, read_status["capped"])
