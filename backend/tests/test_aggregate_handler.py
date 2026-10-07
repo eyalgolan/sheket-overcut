@@ -1251,6 +1251,19 @@ def test_successful_run_prints_exactly_one_emf_line(aws, capsys):
     assert line["_aws"]["Timestamp"] > 1_000_000_000_000  # milliseconds
 
 
+def test_emf_function_dimension_follows_the_lambda_function_name(
+    aws, monkeypatch, capsys
+):
+    # Review finding M-5: with another name_prefix the alarms watch
+    # "<prefix>-aggregate", so the heartbeat must carry the runtime's name and
+    # not a value that only matches the default prefix.
+    monkeypatch.setenv("AWS_LAMBDA_FUNCTION_NAME", "dev-aggregate")
+    run()
+    (line,) = emf_lines(capsys.readouterr().out)
+    assert line["Function"] == "dev-aggregate"
+    assert line["AggregateSucceeded"] == 1
+
+
 def test_emf_line_carries_counts_only(aws, capsys):
     ddb, _ = aws
     put_group(ddb, "sms", SMS, NOW_DT - timedelta(hours=1))

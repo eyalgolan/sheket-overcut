@@ -9,6 +9,8 @@ tests fail when the three files, or the build script, drift apart.
 import re
 from pathlib import Path
 
+import pytest
+
 BACKEND_DIR = Path(__file__).resolve().parents[1]
 
 _NAME_RE = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)(\[[^\]]*\])?\s*==\s*([^\s;\\]+)")
@@ -95,3 +97,49 @@ def test_build_layer_installs_the_lock_with_require_hashes():
     assert "--require-hashes" in code
     assert re.search(r"-r\s+requirements-lock\.txt\b", code)
     assert not re.search(r"-r\s+requirements\.txt\b", code)
+
+
+# --- The parser the guards above rely on ------------------------------------
+
+_HASH_A = "a" * 64
+_HASH_B = "b" * 64
+
+
+def test_parser_reads_hashed_continuation_lines(tmp_path):
+    lock = tmp_path / "lock.txt"
+    lock.write_text(
+        "# header comment\n"
+        "-c other.txt\n"
+        "--index-url https://example.invalid/simple\n"
+        "Rpds_Py==1.2.3 \\\n"
+        f"    --hash=sha256:{_HASH_A} \\\n"
+        f"    --hash=sha256:{_HASH_B}\n"
+        "    # via referencing\n"
+        "moto[dynamodb,s3]==5.2.3 ; python_version >= '3.9' \\\n"
+        f"    --hash=sha256:{_HASH_A}\n",
+        encoding="utf-8",
+    )
+    assert parse_requirements(lock) == {
+        "rpds-py": ("1.2.3", frozenset({_HASH_A, _HASH_B})),
+        "moto": ("5.2.3", frozenset({_HASH_A})),
+    }
+
+
+def test_parser_reports_an_unhashed_pin_as_hashless(tmp_path):
+    lock = tmp_path / "lock.txt"
+    lock.write_text("six==1.17.0\n", encoding="utf-8")
+    assert parse_requirements(lock) == {"six": ("1.17.0", frozenset())}
+
+
+def test_parser_rejects_an_unpinned_requirement(tmp_path):
+    lock = tmp_path / "lock.txt"
+    lock.write_text("attrs>=26\n", encoding="utf-8")
+    with pytest.raises(AssertionError, match="unpinned"):
+        parse_requirements(lock)
+
+
+def test_parser_rejects_a_duplicate_pin(tmp_path):
+    lock = tmp_path / "lock.txt"
+    lock.write_text("six==1.17.0\nSix==1.16.0\n", encoding="utf-8")
+    with pytest.raises(AssertionError, match="duplicate"):
+        parse_requirements(lock)
