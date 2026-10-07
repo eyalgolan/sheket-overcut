@@ -118,9 +118,7 @@ def put_group(ddb, kind, sender, at, installs=MIN_INSTALLS, start=0):
 
 
 def put_override(ddb, sk):
-    ddb.put_item(
-        TableName=TABLE_NAME, Item={"pk": {"S": "OVERRIDE"}, "sk": {"S": sk}}
-    )
+    ddb.put_item(TableName=TABLE_NAME, Item={"pk": {"S": "OVERRIDE"}, "sk": {"S": sk}})
 
 
 def put_previous(s3, body):
@@ -195,7 +193,7 @@ def recorder(aws, monkeypatch):
 def test_reports_posted_through_the_report_handler_are_published(
     aws, monkeypatch, schema
 ):
-    ddb, s3 = aws
+    _, s3 = aws
     monkeypatch.setattr(report, "_now", lambda: NOW_DT - timedelta(hours=1))
     ips = ["203.0.113.10", "198.51.100.20", "203.0.113.30"]
     for i, ip in enumerate(ips):
@@ -237,9 +235,7 @@ def test_reports_posted_through_the_report_handler_are_published(
     assert doc["version"] == NOW
 
 
-def test_published_document_matches_a_fresh_build_from_the_same_inputs(
-    aws, curated
-):
+def test_published_document_matches_a_fresh_build_from_the_same_inputs(aws, curated):
     ddb, s3 = aws
     put_group(ddb, "call", CALL, NOW_DT - timedelta(days=1))
     put_group(ddb, "sms", SMS, NOW_DT - timedelta(days=2), start=10)
@@ -248,14 +244,22 @@ def test_published_document_matches_a_fresh_build_from_the_same_inputs(
     run()
 
     reports = [
-        {"kind": "call", "sender": CALL, "install_id": install_id(i),
-         "net_hash": (NET_A, NET_B)[i % 2],
-         "received_at": "2026-10-05T12:00:00.000Z"}
+        {
+            "kind": "call",
+            "sender": CALL,
+            "install_id": install_id(i),
+            "net_hash": (NET_A, NET_B)[i % 2],
+            "received_at": "2026-10-05T12:00:00.000Z",
+        }
         for i in range(MIN_INSTALLS)
     ] + [
-        {"kind": "sms", "sender": SMS, "install_id": install_id(10 + i),
-         "net_hash": (NET_A, NET_B)[i % 2],
-         "received_at": "2026-10-04T12:00:00.000Z"}
+        {
+            "kind": "sms",
+            "sender": SMS,
+            "install_id": install_id(10 + i),
+            "net_hash": (NET_A, NET_B)[i % 2],
+            "received_at": "2026-10-04T12:00:00.000Z",
+        }
         for i in range(MIN_INSTALLS)
     ]
     expected = build_blocklist(
@@ -332,8 +336,11 @@ def test_counter_items_in_other_partitions_are_not_read_as_reports(aws):
     for i in range(MIN_INSTALLS):
         ddb.put_item(
             TableName=TABLE_NAME,
-            Item={"pk": {"S": f"RL#I#{install_id(i)}#{day}"}, "sk": {"S": "-"},
-                  "n": {"N": "1"}},
+            Item={
+                "pk": {"S": f"RL#I#{install_id(i)}#{day}"},
+                "sk": {"S": "-"},
+                "n": {"N": "1"},
+            },
         )
     run()
     doc = published(s3)
@@ -390,7 +397,9 @@ def test_reports_spread_over_every_day_partition_all_count(aws, monkeypatch):
     # One install per partition, 0..7 days back (the oldest exactly at the
     # cutoff); a publication at MIN_INSTALLS=8 needs every one of them.
     for d in range(8):
-        put_report(ddb, "sms", SMS, d, (NET_A, NET_B)[d % 2], NOW_DT - timedelta(days=d))
+        put_report(
+            ddb, "sms", SMS, d, (NET_A, NET_B)[d % 2], NOW_DT - timedelta(days=d)
+        )
     monkeypatch.setenv("MIN_INSTALLS", "8")
     run()
     assert published(s3)["sms_senders"] == [SMS_NORMALISED]
@@ -607,7 +616,6 @@ def test_invalid_document_on_the_first_run_writes_nothing(
 
 
 def test_validation_runs_before_put_object(aws, monkeypatch):
-    _, s3 = aws
     order = []
     real_validate = aggregate.validate_blocklist
     real_s3 = aggregate._s3()
@@ -741,9 +749,7 @@ def test_unusable_previous_object_is_replaced(aws, caplog, schema, body):
     assert errors and "previous blocklist" in errors[0].getMessage()
 
 
-def test_unusable_previous_object_with_equal_content_is_still_replaced(
-    aws, curated
-):
+def test_unusable_previous_object_with_equal_content_is_still_replaced(aws, curated):
     _, s3 = aws
     previous = build_blocklist(curated, [], [], NOW - 60, 0, 3, 2)
     previous["version"] = "not-an-int"
@@ -760,9 +766,7 @@ def test_unusable_previous_object_content_is_not_logged(aws, caplog):
     assert "SECRET-SENDER-VALUE" not in caplog.text
 
 
-def test_version_stays_increasing_when_the_previous_is_ahead_of_the_clock(
-    aws, curated
-):
+def test_version_stays_increasing_when_the_previous_is_ahead_of_the_clock(aws, curated):
     ddb, s3 = aws
     previous = build_blocklist(curated, [], [], NOW + 500, 0, 3, 2)
     put_previous(s3, previous)
@@ -774,9 +778,7 @@ def test_version_stays_increasing_when_the_previous_is_ahead_of_the_clock(
 # --- AC-4: conditional write ---------------------------------------------------
 
 
-def test_unchanged_content_inside_the_refresh_window_is_not_written(
-    aws, clock, capsys
-):
+def test_unchanged_content_inside_the_refresh_window_is_not_written(aws, clock, capsys):
     _, s3 = aws
     run()
     first = published_bytes(s3)
@@ -860,9 +862,7 @@ def test_unchanged_content_is_rewritten_once_the_refresh_is_due(aws, clock):
     assert published(s3)["version"] == NOW + 6 * 3600
 
 
-def test_unchanged_content_one_second_before_the_refresh_is_not_written(
-    aws, clock
-):
+def test_unchanged_content_one_second_before_the_refresh_is_not_written(aws, clock):
     _, s3 = aws
     run()
     clock.now = NOW + int(FORCED_REFRESH.total_seconds()) - 1
@@ -870,12 +870,8 @@ def test_unchanged_content_one_second_before_the_refresh_is_not_written(
     assert published(s3)["version"] == NOW
 
 
-@pytest.mark.parametrize(
-    "generated_at", [None, 12345, "yesterday", ""], ids=repr
-)
-def test_unreadable_previous_generated_at_forces_a_write(
-    aws, curated, generated_at
-):
+@pytest.mark.parametrize("generated_at", [None, 12345, "yesterday", ""], ids=repr)
+def test_unreadable_previous_generated_at_forces_a_write(aws, curated, generated_at):
     _, s3 = aws
     previous = build_blocklist(curated, [], [], NOW - 60, 0, 3, 2)
     if generated_at is None:
@@ -910,8 +906,14 @@ def test_content_ignores_only_version_and_generated_at(curated):
 
 @pytest.mark.parametrize(
     "field",
-    ["schema", "call_numbers", "call_prefixes", "sms_senders",
-     "sms_keywords", "sms_allow_senders"],
+    [
+        "schema",
+        "call_numbers",
+        "call_prefixes",
+        "sms_senders",
+        "sms_keywords",
+        "sms_allow_senders",
+    ],
 )
 def test_any_content_field_change_is_a_write(curated, field):
     new = _doc(curated, NOW)
@@ -1029,8 +1031,12 @@ def test_emf_line_carries_counts_only(aws, capsys):
     assert line["call_numbers"] == 1
     assert line["sms_senders"] == 1
     assert set(line) == {
-        "_aws", "Function", "AggregateSucceeded", "written",
-        "call_numbers", "sms_senders",
+        "_aws",
+        "Function",
+        "AggregateSucceeded",
+        "written",
+        "call_numbers",
+        "sms_senders",
     }
 
 
@@ -1139,8 +1145,15 @@ def test_logs_never_carry_senders_install_ids_or_network_hashes(aws, caplog):
     caplog.set_level(logging.DEBUG, logger="sheket.aggregate")
     run()
     text = caplog.text
-    for secret in ("SecretParty", "secretparty", "HiddenSender", "hiddensender",
-                   install_id(0), NET_A, NET_B):
+    for secret in (
+        "SecretParty",
+        "secretparty",
+        "HiddenSender",
+        "hiddensender",
+        install_id(0),
+        NET_A,
+        NET_B,
+    ):
         assert secret not in text
     assert f"blocklist written: version={NOW} " in text
     assert "loaded 3 reports from 8 day partitions" in text
