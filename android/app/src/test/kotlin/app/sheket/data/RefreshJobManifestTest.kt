@@ -99,6 +99,33 @@ class RefreshJobManifestTest {
         assertEquals("false", service.getAttributeNS(ANDROID_NS, "exported"))
     }
 
+    @Test
+    fun stripCommentsKeepsCodeAfterSlashesInAStringLiteral() {
+        val line = "val u = \"https://example.invalid\"; builder.setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)"
+        val stripped = stripComments(line)
+        assertEquals(line, stripped)
+        assertNotNull("the constraint call after the URL must survive", NETWORK_TYPE.find(stripped))
+    }
+
+    @Test
+    fun stripCommentsKeepsEscapedQuotesAndCharLiterals() {
+        val source = "val q = '\"' // gone\nval s = \"say \\\"//hi\\\"\" // gone too"
+        assertEquals("val q = '\"' \nval s = \"say \\\"//hi\\\"\" ", stripComments(source))
+    }
+
+    @Test
+    fun stripCommentsRemovesLineAndNestedBlockComments() {
+        val source = "a(1) // setPersisted(true)\nb(2) /* outer /* inner */ still comment */ c(3)\nd(4)"
+        assertEquals("a(1) \nb(2)   c(3)\nd(4)", stripComments(source))
+    }
+
+    @Test
+    fun stripCommentsKeepsRawStringsVerbatim() {
+        // The raw string ends in a backslash, which must not escape the closing quotes.
+        val source = "val r = \"\"\"https://example.invalid/* kept */ C:\\\"\"\" // gone\nnext()"
+        assertEquals("val r = \"\"\"https://example.invalid/* kept */ C:\\\"\"\" \nnext()", stripComments(source))
+    }
+
     private fun usesPermissions(): List<Element> = elements("uses-permission")
 
     private fun elements(tag: String): List<Element> {
@@ -109,7 +136,59 @@ class RefreshJobManifestTest {
     private fun kotlinSource(relative: String): String {
         val file = File(mainDir, relative)
         assertTrue("missing source ${file.path}", file.isFile)
-        return file.readText().replace(BLOCK_COMMENT, "").replace(LINE_COMMENT, "")
+        return stripComments(file.readText())
+    }
+
+    /**
+     * Removes Kotlin line comments and block comments (which nest), replacing each block comment with
+     * a space, and copies string, raw string and char literals verbatim, so a `//` inside a string
+     * (such as a URL) does not hide the rest of its line.
+     * Limit: a string nested inside a `${...}` template expression is not tracked.
+     */
+    private fun stripComments(source: String): String {
+        val out = StringBuilder(source.length)
+        var i = 0
+        while (i < source.length) {
+            val c = source[i]
+            when {
+                source.startsWith("\"\"\"", i) -> {
+                    // Raw string: no escapes; a run of extra quotes before the end belongs to the content.
+                    val end = source.indexOf("\"\"\"", i + 3)
+                    var stop = if (end < 0) source.length else end + 3
+                    while (stop < source.length && source[stop] == '"') stop++
+                    out.append(source, i, stop)
+                    i = stop
+                }
+                c == '"' || c == '\'' -> {
+                    var j = i + 1
+                    while (j < source.length && source[j] != c && source[j] != '\n') {
+                        j += if (source[j] == '\\') 2 else 1
+                    }
+                    val stop = minOf(j + 1, source.length)
+                    out.append(source, i, stop)
+                    i = stop
+                }
+                source.startsWith("//", i) -> {
+                    val end = source.indexOf('\n', i)
+                    i = if (end < 0) source.length else end
+                }
+                source.startsWith("/*", i) -> {
+                    var depth = 1
+                    var j = i + 2
+                    while (j < source.length && depth > 0) {
+                        when {
+                            source.startsWith("/*", j) -> { depth++; j += 2 }
+                            source.startsWith("*/", j) -> { depth--; j += 2 }
+                            else -> j++
+                        }
+                    }
+                    out.append(' ')
+                    i = j
+                }
+                else -> { out.append(c); i++ }
+            }
+        }
+        return out.toString()
     }
 
     private companion object {
@@ -127,7 +206,5 @@ class RefreshJobManifestTest {
 
         val NETWORK_TYPE = Regex("""\.setRequiredNetworkType\(\s*JobInfo\.NETWORK_TYPE_(\w+)""")
         val ON_CREATE = Regex("""override fun onCreate\(\)\s*\{[^}]*}""")
-        val BLOCK_COMMENT = Regex("""/\*.*?\*/""", RegexOption.DOT_MATCHES_ALL)
-        val LINE_COMMENT = Regex("""//[^\n]*""")
     }
 }

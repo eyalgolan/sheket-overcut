@@ -1,5 +1,5 @@
 variable "name_prefix" {
-  description = "Prefix for resource names. Lowercase letters, digits and hyphens; at most 20 characters because it feeds the S3 bucket_prefix."
+  description = "Prefix for resource names. Lowercase letters, digits and hyphens; at most 20 characters because it feeds the S3 bucket_prefix. The DynamoDB table name is fixed (\"reports\"), so deploy one stack per account and region."
   type        = string
   default     = "sheket"
 

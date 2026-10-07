@@ -1,0 +1,10 @@
+# Source for the fully hashed requirements-dev.txt (installed by CI). Runtime
+# packages are constrained to the versions in requirements-lock.txt so the
+# tests run against exactly what the Lambda layer ships. Regenerate from
+# backend/ with:
+#   uv pip compile --python-version 3.13 --python-platform x86_64-manylinux2014 --generate-hashes requirements-dev.in -o requirements-dev.txt
+-c requirements-lock.txt
+-r requirements.txt
+boto3==1.43.108
+moto[dynamodb,s3]==5.2.3
+pytest==9.1.1
