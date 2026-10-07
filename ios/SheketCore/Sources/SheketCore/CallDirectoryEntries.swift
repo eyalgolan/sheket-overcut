@@ -99,6 +99,17 @@ public enum CallDirectoryEntries {
         return set.sorted()
     }
 
+    /// Serialises `entries` as consecutive 8-byte little-endian `Int64`
+    /// values, in the order given.
+    ///
+    /// Pass the output of `build`: `forEachEntry(in:_:)` rejects data whose
+    /// values are not positive and strictly ascending. `encode` itself does
+    /// no validation.
+    public static func encode(_ entries: [Int64]) -> Data {
+        let le = entries.map { $0.littleEndian }
+        return le.withUnsafeBufferPointer { Data(buffer: $0) }
+    }
+
     /// The digits after the `+` as an `Int64`, or nil unless `s` is `+`,
     /// then `1`-`9`, then ASCII digits only, with at most `maxDigits` digits.
     private static func digits(_ s: String) -> Int64? {
