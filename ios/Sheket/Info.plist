@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>$(SHEKET_BUNDLE_ID_PREFIX).refresh</string>
+	</array>
+	<key>SheketAppGroup</key>
+	<string>$(SHEKET_APP_GROUP)</string>
+	<key>SheketBlocklistURL</key>
+	<string>$(SHEKET_BLOCKLIST_URL)</string>
+	<key>SheketReportURL</key>
+	<string>$(SHEKET_REPORT_URL)</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+	</array>
+</dict>
+</plist>
