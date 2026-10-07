@@ -20,7 +20,20 @@
 
     <string name="blocked_last_7_days">Calls blocked in the last 7 days: %1$d</string>
 
+    <string name="report_button">Report a call</string>
     <string name="about_button">About and privacy</string>
+
+    <string name="report_title">Report a call</string>
+    <string name="report_empty">No screened calls yet. Only calls from numbers that are not in your contacts appear here.</string>
+    <string name="report_number_unknown">Withheld or unknown</string>
+    <string name="report_row_blocked">Blocked</string>
+    <string name="report_row_rang">Rang</string>
+    <string name="report_action">Report</string>
+    <string name="report_state_reported">Reported</string>
+    <string name="report_state_not_reportable">Not reportable</string>
+    <string name="report_result_sent">Report sent. Thank you.</string>
+    <string name="report_result_try_later">Too many reports for now. Try again later.</string>
+    <string name="report_result_not_sent">Not sent. Try again later.</string>
 
     <string name="about_title">About Sheket</string>
     <string name="about_what">Sheket blocks election spam calls before they ring. It checks each incoming call against a list of numbers kept on your phone, so no network is used during a call. The list is built from user reports: a number is added only after at least 3 different installs on at least 2 different networks report it. The app downloads the latest list from the internet.</string>
