@@ -110,6 +110,35 @@ public enum CallDirectoryEntries {
         return le.withUnsafeBufferPointer { Data(buffer: $0) }
     }
 
+    /// Streams the values of `data` (the `encode` format) to `body`, in order.
+    ///
+    /// Throws `CallDirectoryEntriesError.corrupt` if the length is not a
+    /// multiple of 8, or a value is not positive, or a value is not strictly
+    /// greater than the one before it. Empty data calls `body` zero times.
+    ///
+    /// Reading stops at the first violation, so `body` may already have
+    /// received earlier values. The Call Directory extension (#29) must
+    /// therefore cancel its request when this throws, so iOS keeps the
+    /// entries it installed before.
+    public static func forEachEntry(in data: Data, _ body: (Int64) -> Void) throws {
+        guard data.count % 8 == 0 else { throw CallDirectoryEntriesError.corrupt }
+        try data.withUnsafeBytes { (raw: UnsafeRawBufferPointer) throws -> Void in
+            // Starting at 0 makes one check reject non-positive values,
+            // out-of-order values and duplicates.
+            var previous: Int64 = 0
+            // Offsets are relative to the buffer, never `data.startIndex`;
+            // sliced or memory-mapped data may be unaligned, hence
+            // `loadUnaligned`.
+            for offset in stride(from: 0, to: raw.count, by: 8) {
+                let value = Int64(littleEndian: raw.loadUnaligned(fromByteOffset: offset,
+                                                                  as: Int64.self))
+                guard value > previous else { throw CallDirectoryEntriesError.corrupt }
+                body(value)
+                previous = value
+            }
+        }
+    }
+
     /// The digits after the `+` as an `Int64`, or nil unless `s` is `+`,
     /// then `1`-`9`, then ASCII digits only, with at most `maxDigits` digits.
     private static func digits(_ s: String) -> Int64? {
