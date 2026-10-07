@@ -9,6 +9,7 @@ import app.sheket.data.BlocklistRefresher
 import app.sheket.data.BlocklistRepository
 import app.sheket.data.BlocklistStore
 import app.sheket.data.RefreshJobService
+import app.sheket.screening.ScreenedCallLog
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 
@@ -36,6 +37,8 @@ class SheketApp : Application() {
     }
 
     val refresher: BlocklistRefresher by lazy { BlocklistRefresher(repository, store) }
+
+    val screenedCallLog: ScreenedCallLog by lazy { ScreenedCallLog(this) }
 
     override fun onCreate() {
         super.onCreate()
