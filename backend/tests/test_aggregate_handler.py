@@ -472,7 +472,7 @@ def test_overrides_are_queried_from_the_override_partition(recorder):
 def test_projection_drops_every_other_report_attribute(aws):
     ddb, _ = aws
     put_report(ddb, "sms", SMS, 0, NET_A, NOW_DT - timedelta(hours=1), text="Hi")
-    loaded = aggregate._load_reports(TABLE_NAME, NOW)
+    loaded = list(aggregate._load_reports(TABLE_NAME, NOW))
     assert loaded == [
         {
             "kind": "sms",

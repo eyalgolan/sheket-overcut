@@ -24,6 +24,9 @@ Provisional values, named here in one place:
   hours old" from ``generated_at`` or from their last successful check.
   Android PR #42 measures from the last successful check; if that is
   confirmed, drop it.
+- The per-run report read cap (``MAX_REPORTS_PER_RUN``, ``READ_TIME_BUDGET``)
+  bounds memory and time under a report flood (issue #49); a capped run keeps
+  what it read so far.
 
 Configuration comes from the environment, read at call time, never at import:
 
@@ -66,6 +69,12 @@ CONTRACT_DIR = Path(__file__).parent / "contract"
 # check in `_should_write` if apps measure staleness from their last
 # successful check.
 FORCED_REFRESH = timedelta(hours=6)
+# Most reports read per run (issue #49): about 100 IPv4 addresses x 60 reports
+# per hour x 168 hours in the window = 1.008M reports.
+MAX_REPORTS_PER_RUN = 1_000_000
+# Most seconds spent reading reports per run (issue #49), leaving the rest of
+# the Lambda timeout for building, validating and writing.
+READ_TIME_BUDGET = 240
 # EMF heartbeat (`_emit_success`); the stale-list alarm (#8) watches it.
 METRIC_NAMESPACE = "Sheket"
 FUNCTION_NAME = "aggregate"
@@ -118,6 +127,15 @@ def _now() -> int:
     by tests.
     """
     return int(time.time())
+
+
+def _monotonic() -> float:
+    """Return a monotonic clock reading in seconds; patched by tests.
+
+    Separate from ``_now()``: ``_now()`` must be read once per run, and
+    wall-clock time must not drive the read time limit.
+    """
+    return time.monotonic()
 
 
 class _Config(NamedTuple):
@@ -467,24 +485,34 @@ def _query_all(**kwargs) -> list[dict]:
     return list(_query_items(**kwargs))
 
 
-def _load_reports(table: str, now: int) -> list[dict]:
-    """Load the reports of the last ``WINDOW`` from their UTC day partitions.
+def _load_reports(table: str, now: int) -> Iterator[dict]:
+    """Stream the reports of the last ``WINDOW`` from their UTC day partitions.
 
     Reports are stored under ``pk = "R#YYYY-MM-DD"`` with ``sk`` starting with
     ``received_at`` (``sheket.report``). Every day from the cutoff's day to
-    ``now``'s day is queried; the oldest partition is narrowed with
-    ``sk >= cutoff`` (``now`` is whole seconds, so a report exactly at the
+    ``now``'s day is queried, oldest first; the oldest partition is narrowed
+    with ``sk >= cutoff`` (``now`` is whole seconds, so a report exactly at the
     cutoff is included). This only limits the read: the builder's
     ``received_at`` check stays the exact window filter and also drops
     reports dated after ``now``. Logs carry counts only, never item contents.
+
+    Reports are yielded as they are read and the stream is read once. The read
+    stops with one warning after ``MAX_REPORTS_PER_RUN`` items (counted before
+    any validation, so malformed items count too) or ``READ_TIME_BUDGET``
+    seconds, timed from the first iteration. The run then continues with what
+    was read: senders counted so far still qualify, and the curated list and
+    the overrides are unaffected. The oldest-first order is kept on purpose,
+    so a capped run drops the newest partitions.
     """
     now_dt = datetime.fromtimestamp(now, timezone.utc)
     cutoff = now_dt - WINDOW
     cut = cutoff.strftime("%Y-%m-%dT%H:%M:%S.000Z")
     first_day = cutoff.date()
     last_day = now_dt.date()
+    total = (last_day - first_day).days + 1
 
-    reports: list[dict] = []
+    start = _monotonic()
+    read = 0
     partitions = 0
     day = first_day
     while day <= last_day:
@@ -493,19 +521,29 @@ def _load_reports(table: str, now: int) -> list[dict]:
         if day == first_day:
             condition = "pk = :pk AND sk >= :cut"
             values[":cut"] = {"S": cut}
-        reports.extend(
-            _query_all(
-                TableName=table,
-                KeyConditionExpression=condition,
-                ExpressionAttributeValues=values,
-                ProjectionExpression="kind, sender, install_id, net_hash, received_at",
-            )
-        )
         partitions += 1
+        for item in _query_items(
+            TableName=table,
+            KeyConditionExpression=condition,
+            ExpressionAttributeValues=values,
+            ProjectionExpression="kind, sender, install_id, net_hash, received_at",
+        ):
+            elapsed = _monotonic() - start
+            if read >= MAX_REPORTS_PER_RUN or elapsed >= READ_TIME_BUDGET:
+                logger.warning(
+                    "report read capped: %d reports, %d of %d day partitions, %.1f s",
+                    read,
+                    partitions,
+                    total,
+                    elapsed,
+                )
+                logger.info("loaded %d reports from %d day partitions", read, total)
+                return
+            read += 1
+            yield item
         day += timedelta(days=1)
 
-    logger.info("loaded %d reports from %d day partitions", len(reports), partitions)
-    return reports
+    logger.info("loaded %d reports from %d day partitions", read, total)
 
 
 def _load_overrides(table: str) -> list[dict]:
@@ -625,9 +663,10 @@ def _emit_success(written: bool, doc: dict) -> None:
 def handler(event, context) -> None:
     """Aggregate Lambda entry point; ``event`` and ``context`` are unused.
 
-    Reads the configuration and the contract, takes the clock once, loads the
-    reports, the overrides and the previous blocklist, builds the new
-    document and validates it before anything is written. The document is
+    Reads the configuration and the contract, takes the clock once, opens a
+    lazy report stream, loads the overrides and the previous blocklist, then
+    builds the new document (``build_blocklist`` drains the report stream)
+    and validates it before anything is written. The document is
     written to ``v1/blocklist.json`` only when ``_should_write`` says so, and
     one log line records the outcome with counts only.
 
