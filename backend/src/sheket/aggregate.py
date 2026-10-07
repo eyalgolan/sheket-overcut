@@ -584,7 +584,12 @@ def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
     Always on the first run (or an unusable previous object) and whenever the
     content, everything except ``version`` and ``generated_at``, changed.
     Unchanged content is rewritten only once the forced refresh is due, or
-    when the previous ``generated_at`` is unreadable or in the future.
+    when the previous ``generated_at`` is unreadable or later than the time of
+    ``new_doc["version"]``. That last write replaces it with a ``generated_at``
+    no later than the new version, so it happens at most once: when the
+    version itself is ahead of the clock, a ``generated_at`` that matches it
+    is still in the future, but rewriting cannot make it current, so the
+    content is left alone until the refresh is due.
     """
     if previous_doc is None or _content(new_doc) != _content(previous_doc):
         return True
@@ -592,7 +597,8 @@ def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
     # The only code that depends on open owner Decision 5 (provisional 6-hour
     # forced refresh, see FORCED_REFRESH). Dropping the refresh means deleting
     # FORCED_REFRESH and this age check; unchanged content is then never
-    # rewritten. An unreadable or future generated_at forces a write.
+    # rewritten. An unreadable generated_at, or one later than the new
+    # version's time, forces a write.
     generated = previous_doc.get("generated_at")
     if not isinstance(generated, str):
         return True
@@ -602,10 +608,12 @@ def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
         return True
     if generated_at.tzinfo is None:
         generated_at = generated_at.replace(tzinfo=timezone.utc)
-    age = datetime.fromtimestamp(now, timezone.utc) - generated_at
-    if age < timedelta(0):
-        logger.warning("previous generated_at is in the future; forcing refresh")
+    if generated_at > datetime.fromtimestamp(new_doc["version"], timezone.utc):
+        logger.warning(
+            "previous generated_at is later than the new version; forcing refresh"
+        )
         return True
+    age = datetime.fromtimestamp(now, timezone.utc) - generated_at
     return age >= FORCED_REFRESH
 
 
