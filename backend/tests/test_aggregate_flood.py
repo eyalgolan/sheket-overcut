@@ -47,6 +47,8 @@ LAMBDA_TF = TESTS_DIR.parents[1] / "infra" / "lambda.tf"
 DAYS = [
     f"R#{(NOW_DT - timedelta(days=d)).strftime('%Y-%m-%d')}" for d in range(7, -1, -1)
 ]
+# The order _load_reports queries them in: today first.
+NEWEST_FIRST = DAYS[::-1]
 
 
 @pytest.fixture(autouse=True)
@@ -177,7 +179,7 @@ def test_load_reports_reads_nothing_until_iterated(mono):
     del reports
 
 
-def test_uncapped_read_yields_every_item_oldest_partition_first(
+def test_uncapped_read_yields_every_item_newest_partition_first(
     monkeypatch, mono, caplog
 ):
     stub = StubPartitions(per_day=3, page=2)
@@ -187,8 +189,10 @@ def test_uncapped_read_yields_every_item_oldest_partition_first(
 
     items = list(aggregate._load_reports(TABLE_NAME, NOW))
 
-    assert [i["sk"] for i in items] == [f"{d}#{n}" for d in DAYS for n in range(3)]
-    assert stub.partitions == DAYS
+    assert [i["sk"] for i in items] == [
+        f"{d}#{n}" for d in NEWEST_FIRST for n in range(3)
+    ]
+    assert stub.partitions == NEWEST_FIRST
     assert capped_messages(caplog) == []
     assert loaded_messages(caplog) == ["loaded 24 reports from 8 day partitions"]
 
@@ -196,7 +200,7 @@ def test_uncapped_read_yields_every_item_oldest_partition_first(
 # --- the item cap ---------------------------------------------------------------
 
 
-def test_item_cap_stops_the_read_and_skips_the_newer_partitions(
+def test_item_cap_stops_the_read_and_skips_the_older_partitions(
     monkeypatch, mono, caplog
 ):
     stub = StubPartitions(per_day=3, page=2)
@@ -206,14 +210,14 @@ def test_item_cap_stops_the_read_and_skips_the_newer_partitions(
 
     items = list(aggregate._load_reports(TABLE_NAME, NOW))
 
-    # Oldest first: all of day 1, then the first item of day 2.
+    # Newest first: all of today, then the first item of yesterday.
     assert [i["sk"] for i in items] == [
-        f"{DAYS[0]}#0",
-        f"{DAYS[0]}#1",
-        f"{DAYS[0]}#2",
-        f"{DAYS[1]}#0",
+        f"{NEWEST_FIRST[0]}#0",
+        f"{NEWEST_FIRST[0]}#1",
+        f"{NEWEST_FIRST[0]}#2",
+        f"{NEWEST_FIRST[1]}#0",
     ]
-    assert stub.partitions == DAYS[:2]
+    assert stub.partitions == NEWEST_FIRST[:2]
     (warning,) = [r for r in caplog.records if r.levelno == logging.WARNING]
     assert warning.getMessage() == (
         "report read capped: 4 reports, 2 of 8 day partitions, 0.0 s"
@@ -249,7 +253,7 @@ def test_malformed_items_count_towards_the_cap(monkeypatch, mono):
     monkeypatch.setattr(aggregate, "MAX_REPORTS_PER_RUN", 2)
 
     assert list(aggregate._load_reports(TABLE_NAME, NOW)) == [{}, {}]
-    assert stub.partitions == DAYS[:1]
+    assert stub.partitions == NEWEST_FIRST[:1]
 
 
 def test_default_cap_covers_the_issue_flood():
@@ -274,7 +278,7 @@ def test_time_budget_stops_the_read(monkeypatch, mono, caplog):
         mono.value += budget / 4
 
     assert len(taken) == 4
-    assert stub.partitions == DAYS[:2]
+    assert stub.partitions == NEWEST_FIRST[:2]
     assert capped_messages(caplog) == [
         f"report read capped: 4 reports, 2 of 8 day partitions, {budget:.1f} s"
     ]
@@ -459,20 +463,21 @@ CALL_NEVER = "+972509998877"
 
 
 def seed_capped_run(ddb):
-    """Two call groups in an old partition, one sms group today, two overrides.
+    """Two call groups today, one sms group in an old partition, two overrides.
 
-    The six old reports are read before a cap of 6; today's three are not.
+    Partitions are read newest first, so today's six reports are read before
+    a cap of 6; the three old ones are not.
     """
-    put_group(ddb, "call", CALL, NOW_DT - timedelta(days=6))
-    put_group(ddb, "call", CALL_NEVER, NOW_DT - timedelta(days=6), start=20)
-    put_group(ddb, "sms", SMS, NOW_DT - timedelta(hours=1), start=10)
+    put_group(ddb, "call", CALL, NOW_DT - timedelta(hours=1))
+    put_group(ddb, "call", CALL_NEVER, NOW_DT - timedelta(hours=1), start=20)
+    put_group(ddb, "sms", SMS, NOW_DT - timedelta(days=6), start=10)
     put_override(ddb, "force_block#sms#SpamOne")
     put_override(ddb, f"never_block#{CALL_NEVER}")
 
 
 def assert_capped_publication(doc, curated):
-    # Both old groups qualified before the cap, and never_block removes one;
-    # today's group was never read.
+    # Both of today's groups qualified before the cap, and never_block removes
+    # one; the old group was never read.
     assert doc["call_numbers"] == [CALL]
     # The force_block override is published although its sender was never
     # reported.
@@ -498,8 +503,8 @@ def test_item_capped_run_publishes_curated_overrides_and_qualified(
     aggregate.validate_blocklist(doc, contract_loader("blocklist.schema.json"))
     assert_capped_publication(doc, curated)
     (message,) = capped_messages(caplog)
-    assert message.startswith("report read capped: 6 reports, 8 of 8 day partitions")
-    assert loaded_messages(caplog) == ["loaded 6 reports from 8 day partitions"]
+    assert message.startswith("report read capped: 6 reports, 7 of 8 day partitions")
+    assert loaded_messages(caplog) == ["loaded 6 reports from 7 day partitions"]
     (line,) = emf_lines(capsys.readouterr().out)
     assert line["written"] is True
     assert line["AggregateSucceeded"] == 1
@@ -522,7 +527,33 @@ def test_time_capped_run_publishes_curated_overrides_and_qualified(
 
     assert_capped_publication(published(s3), curated)
     (message,) = capped_messages(caplog)
-    assert message.startswith("report read capped: 6 reports, 8 of 8 day partitions")
+    assert message.startswith("report read capped: 6 reports, 7 of 8 day partitions")
+    (line,) = emf_lines(capsys.readouterr().out)
+    assert line["AggregateSucceeded"] == 1
+
+
+CALL_OLD = "+972507776655"
+
+
+def test_capped_run_publishes_a_sender_reported_only_today(
+    aws, monkeypatch, caplog, capsys
+):
+    # A new spam sender appears today while older evidence fills the cap: the
+    # newest-first read counts today's reports before the old ones.
+    ddb, s3 = aws
+    put_group(ddb, "call", CALL, NOW_DT - timedelta(hours=1))
+    put_group(ddb, "call", CALL_OLD, NOW_DT - timedelta(days=3), start=10)
+    put_group(ddb, "sms", SMS, NOW_DT - timedelta(days=6), start=20)
+    monkeypatch.setattr(aggregate, "MAX_REPORTS_PER_RUN", 3)
+    caplog.set_level(logging.INFO, logger="sheket.aggregate")
+
+    run()
+
+    doc = published(s3)
+    assert doc["call_numbers"] == [CALL]
+    assert SMS_NORMALISED not in doc["sms_senders"]
+    (message,) = capped_messages(caplog)
+    assert message.startswith("report read capped: 3 reports, 4 of 8 day partitions")
     (line,) = emf_lines(capsys.readouterr().out)
     assert line["AggregateSucceeded"] == 1
 

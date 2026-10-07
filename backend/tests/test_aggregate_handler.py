@@ -412,20 +412,19 @@ def test_eight_day_partitions_are_queried_with_the_projection(recorder):
     ]
     days = [q["ExpressionAttributeValues"][":pk"]["S"] for q in report_queries]
     assert days == [
-        f"R#{(NOW_DT - timedelta(days=d)).strftime('%Y-%m-%d')}"
-        for d in range(7, -1, -1)
-    ]
+        f"R#{(NOW_DT - timedelta(days=d)).strftime('%Y-%m-%d')}" for d in range(8)
+    ]  # newest first
     for q in report_queries:
         assert q["TableName"] == TABLE_NAME
         assert q["ProjectionExpression"] == (
             "kind, sender, install_id, net_hash, received_at"
         )
-    # Only the oldest partition is narrowed by the cutoff.
-    assert report_queries[0]["KeyConditionExpression"] == "pk = :pk AND sk >= :cut"
-    assert report_queries[0]["ExpressionAttributeValues"][":cut"] == {
+    # Only the oldest partition, queried last, is narrowed by the cutoff.
+    assert report_queries[-1]["KeyConditionExpression"] == "pk = :pk AND sk >= :cut"
+    assert report_queries[-1]["ExpressionAttributeValues"][":cut"] == {
         "S": "2026-09-29T12:00:00.000Z"
     }
-    for q in report_queries[1:]:
+    for q in report_queries[:-1]:
         assert q["KeyConditionExpression"] == "pk = :pk"
         assert ":cut" not in q["ExpressionAttributeValues"]
 
@@ -449,8 +448,9 @@ def test_always_eight_partitions_at_day_boundaries(recorder, clock, now_dt):
         if ":pk" in q["ExpressionAttributeValues"]
     ]
     assert len(days) == 8
-    assert days[0] == f"R#{(now_dt - WINDOW).strftime('%Y-%m-%d')}"
-    assert days[-1] == f"R#{now_dt.strftime('%Y-%m-%d')}"
+    # Newest first: today's partition, then back to the cutoff's day.
+    assert days[0] == f"R#{now_dt.strftime('%Y-%m-%d')}"
+    assert days[-1] == f"R#{(now_dt - WINDOW).strftime('%Y-%m-%d')}"
 
 
 def test_overrides_are_queried_from_the_override_partition(recorder):

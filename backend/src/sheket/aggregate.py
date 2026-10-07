@@ -25,8 +25,9 @@ Provisional values, named here in one place:
   Android PR #42 measures from the last successful check; if that is
   confirmed, drop it.
 - The per-run report read cap (``MAX_REPORTS_PER_RUN``, ``READ_TIME_BUDGET``)
-  bounds memory and time under a report flood (issue #49); a capped run keeps
-  what it read so far.
+  bounds memory and time under a report flood (issue #49). Day partitions are
+  read newest first, so a capped run keeps the newest reports and drops the
+  oldest.
 
 Configuration comes from the environment, read at call time, never at import:
 
@@ -497,9 +498,9 @@ def _load_reports(table: str, now: int) -> Iterator[dict]:
     """Stream the reports of the last ``WINDOW`` from their UTC day partitions.
 
     Reports are stored under ``pk = "R#YYYY-MM-DD"`` with ``sk`` starting with
-    ``received_at`` (``sheket.report``). Every day from the cutoff's day to
-    ``now``'s day is queried, oldest first; the oldest partition is narrowed
-    with ``sk >= cutoff`` (``now`` is whole seconds, so a report exactly at the
+    ``received_at`` (``sheket.report``). Every day from ``now``'s day back to
+    the cutoff's day is queried, newest first; the oldest partition, queried
+    last, is narrowed with ``sk >= cutoff`` (``now`` is whole seconds, so a report exactly at the
     cutoff is included). This only limits the read: the builder's
     ``received_at`` check stays the exact window filter and also drops
     reports dated after ``now``. Logs carry counts only, never item contents.
@@ -509,8 +510,9 @@ def _load_reports(table: str, now: int) -> Iterator[dict]:
     any validation, so malformed items count too) or ``READ_TIME_BUDGET``
     seconds, timed from the first iteration. The run then continues with what
     was read: senders counted so far still qualify, and the curated list and
-    the overrides are unaffected. The oldest-first order is kept on purpose,
-    so a capped run drops the newest partitions.
+    the overrides are unaffected. The newest-first order is on purpose: a
+    capped run drops the oldest evidence, which is closest to expiring, and
+    keeps counting the senders reported most recently.
     """
     now_dt = datetime.fromtimestamp(now, timezone.utc)
     cutoff = now_dt - WINDOW
@@ -522,8 +524,8 @@ def _load_reports(table: str, now: int) -> Iterator[dict]:
     start = _monotonic()
     read = 0
     partitions = 0
-    day = first_day
-    while day <= last_day:
+    day = last_day
+    while day >= first_day:
         values = {":pk": {"S": f"R#{day.strftime('%Y-%m-%d')}"}}
         condition = "pk = :pk"
         if day == first_day:
@@ -551,7 +553,7 @@ def _load_reports(table: str, now: int) -> Iterator[dict]:
                 return
             read += 1
             yield item
-        day += timedelta(days=1)
+        day -= timedelta(days=1)
 
     logger.info("loaded %d reports from %d day partitions", read, partitions)
 
