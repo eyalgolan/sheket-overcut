@@ -1,0 +1,677 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		5E4B00000000000000000016 /* SheketCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5E4B00000000000000000013 /* SheketCore */; };
+		5E4B00000000000000000017 /* SheketCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5E4B00000000000000000014 /* SheketCore */; };
+		5E4B00000000000000000018 /* SheketCore in Frameworks */ = {isa = PBXBuildFile; productRef = 5E4B00000000000000000015 /* SheketCore */; };
+		5E4B00000000000000000019 /* seed-blocklist.json in Resources */ = {isa = PBXBuildFile; fileRef = 5E4B00000000000000000006 /* seed-blocklist.json */; };
+		5E4B0000000000000000001A /* seed-blocklist.json in Resources */ = {isa = PBXBuildFile; fileRef = 5E4B00000000000000000006 /* seed-blocklist.json */; };
+		5E4B0000000000000000001B /* SheketMessageFilter.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5E4B00000000000000000008 /* SheketMessageFilter.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		5E4B0000000000000000001C /* SheketCallDirectory.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 5E4B00000000000000000009 /* SheketCallDirectory.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		5E4B00000000000000000027 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5E4B00000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5E4B0000000000000000002C;
+			remoteInfo = SheketMessageFilter;
+		};
+		5E4B00000000000000000028 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 5E4B00000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 5E4B0000000000000000002D;
+			remoteInfo = SheketCallDirectory;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		5E4B00000000000000000020 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5E4B0000000000000000001B /* SheketMessageFilter.appex in Embed Foundation Extensions */,
+				5E4B0000000000000000001C /* SheketCallDirectory.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		5E4B00000000000000000005 /* Sheket.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Sheket.xcconfig; sourceTree = "<group>"; };
+		5E4B00000000000000000006 /* seed-blocklist.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = "seed-blocklist.json"; path = "../contract/seed-blocklist.json"; sourceTree = "<group>"; };
+		5E4B00000000000000000007 /* Sheket.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Sheket.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E4B00000000000000000008 /* SheketMessageFilter.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SheketMessageFilter.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		5E4B00000000000000000009 /* SheketCallDirectory.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = SheketCallDirectory.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		5E4B0000000000000000000D /* Exceptions for "Sheket" folder in "Sheket" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				Sheket.entitlements,
+			);
+			target = 5E4B0000000000000000002B /* Sheket */;
+		};
+		5E4B0000000000000000000E /* Exceptions for "Sheket" folder in "SheketMessageFilter" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Shared/AppGroup.swift",
+			);
+			target = 5E4B0000000000000000002C /* SheketMessageFilter */;
+		};
+		5E4B0000000000000000000F /* Exceptions for "Sheket" folder in "SheketCallDirectory" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				"Shared/AppGroup.swift",
+			);
+			target = 5E4B0000000000000000002D /* SheketCallDirectory */;
+		};
+		5E4B00000000000000000010 /* Exceptions for "SheketMessageFilter" folder in "SheketMessageFilter" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				SheketMessageFilter.entitlements,
+			);
+			target = 5E4B0000000000000000002C /* SheketMessageFilter */;
+		};
+		5E4B00000000000000000011 /* Exceptions for "SheketCallDirectory" folder in "SheketCallDirectory" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+				SheketCallDirectory.entitlements,
+			);
+			target = 5E4B0000000000000000002D /* SheketCallDirectory */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		5E4B0000000000000000000A /* Sheket */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5E4B0000000000000000000D /* Exceptions for "Sheket" folder in "Sheket" target */,
+				5E4B0000000000000000000E /* Exceptions for "Sheket" folder in "SheketMessageFilter" target */,
+				5E4B0000000000000000000F /* Exceptions for "Sheket" folder in "SheketCallDirectory" target */,
+			);
+			path = Sheket;
+			sourceTree = "<group>";
+		};
+		5E4B0000000000000000000B /* SheketMessageFilter */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5E4B00000000000000000010 /* Exceptions for "SheketMessageFilter" folder in "SheketMessageFilter" target */,
+			);
+			path = SheketMessageFilter;
+			sourceTree = "<group>";
+		};
+		5E4B0000000000000000000C /* SheketCallDirectory */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				5E4B00000000000000000011 /* Exceptions for "SheketCallDirectory" folder in "SheketCallDirectory" target */,
+			);
+			path = SheketCallDirectory;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		5E4B0000000000000000001E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E4B00000000000000000016 /* SheketCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E4B00000000000000000022 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E4B00000000000000000017 /* SheketCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E4B00000000000000000025 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E4B00000000000000000018 /* SheketCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		5E4B00000000000000000002 = {
+			isa = PBXGroup;
+			children = (
+				5E4B0000000000000000000A /* Sheket */,
+				5E4B0000000000000000000B /* SheketMessageFilter */,
+				5E4B0000000000000000000C /* SheketCallDirectory */,
+				5E4B00000000000000000004 /* Config */,
+				5E4B00000000000000000006 /* seed-blocklist.json */,
+				5E4B00000000000000000003 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5E4B00000000000000000003 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5E4B00000000000000000007 /* Sheket.app */,
+				5E4B00000000000000000008 /* SheketMessageFilter.appex */,
+				5E4B00000000000000000009 /* SheketCallDirectory.appex */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5E4B00000000000000000004 /* Config */ = {
+			isa = PBXGroup;
+			children = (
+				5E4B00000000000000000005 /* Sheket.xcconfig */,
+			);
+			path = Config;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		5E4B0000000000000000002B /* Sheket */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E4B0000000000000000002F /* Build configuration list for PBXNativeTarget "Sheket" */;
+			buildPhases = (
+				5E4B0000000000000000001D /* Sources */,
+				5E4B0000000000000000001E /* Frameworks */,
+				5E4B0000000000000000001F /* Resources */,
+				5E4B00000000000000000020 /* Embed Foundation Extensions */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				5E4B00000000000000000029 /* PBXTargetDependency */,
+				5E4B0000000000000000002A /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				5E4B0000000000000000000A /* Sheket */,
+			);
+			name = Sheket;
+			packageProductDependencies = (
+				5E4B00000000000000000013 /* SheketCore */,
+			);
+			productName = Sheket;
+			productReference = 5E4B00000000000000000007 /* Sheket.app */;
+			productType = "com.apple.product-type.application";
+		};
+		5E4B0000000000000000002C /* SheketMessageFilter */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E4B00000000000000000030 /* Build configuration list for PBXNativeTarget "SheketMessageFilter" */;
+			buildPhases = (
+				5E4B00000000000000000021 /* Sources */,
+				5E4B00000000000000000022 /* Frameworks */,
+				5E4B00000000000000000023 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5E4B0000000000000000000B /* SheketMessageFilter */,
+			);
+			name = SheketMessageFilter;
+			packageProductDependencies = (
+				5E4B00000000000000000014 /* SheketCore */,
+			);
+			productName = SheketMessageFilter;
+			productReference = 5E4B00000000000000000008 /* SheketMessageFilter.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+		5E4B0000000000000000002D /* SheketCallDirectory */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 5E4B00000000000000000031 /* Build configuration list for PBXNativeTarget "SheketCallDirectory" */;
+			buildPhases = (
+				5E4B00000000000000000024 /* Sources */,
+				5E4B00000000000000000025 /* Frameworks */,
+				5E4B00000000000000000026 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				5E4B0000000000000000000C /* SheketCallDirectory */,
+			);
+			name = SheketCallDirectory;
+			packageProductDependencies = (
+				5E4B00000000000000000015 /* SheketCore */,
+			);
+			productName = SheketCallDirectory;
+			productReference = 5E4B00000000000000000009 /* SheketCallDirectory.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		5E4B00000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					5E4B0000000000000000002B = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					5E4B0000000000000000002C = {
+						CreatedOnToolsVersion = 16.0;
+					};
+					5E4B0000000000000000002D = {
+						CreatedOnToolsVersion = 16.0;
+					};
+				};
+			};
+			buildConfigurationList = 5E4B0000000000000000002E /* Build configuration list for PBXProject "Sheket" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 5E4B00000000000000000002;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				5E4B00000000000000000012 /* XCLocalSwiftPackageReference "SheketCore" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5E4B00000000000000000003 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				5E4B0000000000000000002B /* Sheket */,
+				5E4B0000000000000000002C /* SheketMessageFilter */,
+				5E4B0000000000000000002D /* SheketCallDirectory */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		5E4B0000000000000000001F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E4B00000000000000000019 /* seed-blocklist.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E4B00000000000000000023 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5E4B0000000000000000001A /* seed-blocklist.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E4B00000000000000000026 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		5E4B0000000000000000001D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E4B00000000000000000021 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		5E4B00000000000000000024 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		5E4B00000000000000000029 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5E4B0000000000000000002C /* SheketMessageFilter */;
+			targetProxy = 5E4B00000000000000000027 /* PBXContainerItemProxy */;
+		};
+		5E4B0000000000000000002A /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 5E4B0000000000000000002D /* SheketCallDirectory */;
+			targetProxy = 5E4B00000000000000000028 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		5E4B00000000000000000032 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5E4B00000000000000000005 /* Sheket.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		5E4B00000000000000000033 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 5E4B00000000000000000005 /* Sheket.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		5E4B00000000000000000034 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Sheket/Sheket.entitlements;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Sheket/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SHEKET_BUNDLE_ID_PREFIX)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		5E4B00000000000000000035 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = Sheket/Sheket.entitlements;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Sheket/Info.plist;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SHEKET_BUNDLE_ID_PREFIX)";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		5E4B00000000000000000036 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = SheketMessageFilter/SheketMessageFilter.entitlements;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SheketMessageFilter/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SheketMessageFilter;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SHEKET_BUNDLE_ID_PREFIX).messagefilter";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		5E4B00000000000000000037 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = SheketMessageFilter/SheketMessageFilter.entitlements;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SheketMessageFilter/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SheketMessageFilter;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SHEKET_BUNDLE_ID_PREFIX).messagefilter";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+		5E4B00000000000000000038 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = SheketCallDirectory/SheketCallDirectory.entitlements;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SheketCallDirectory/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SheketCallDirectory;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SHEKET_BUNDLE_ID_PREFIX).calldirectory";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Debug;
+		};
+		5E4B00000000000000000039 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = SheketCallDirectory/SheketCallDirectory.entitlements;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SheketCallDirectory/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = SheketCallDirectory;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(SHEKET_BUNDLE_ID_PREFIX).calldirectory";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		5E4B0000000000000000002E /* Build configuration list for PBXProject "Sheket" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E4B00000000000000000032 /* Debug */,
+				5E4B00000000000000000033 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5E4B0000000000000000002F /* Build configuration list for PBXNativeTarget "Sheket" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E4B00000000000000000034 /* Debug */,
+				5E4B00000000000000000035 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5E4B00000000000000000030 /* Build configuration list for PBXNativeTarget "SheketMessageFilter" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E4B00000000000000000036 /* Debug */,
+				5E4B00000000000000000037 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		5E4B00000000000000000031 /* Build configuration list for PBXNativeTarget "SheketCallDirectory" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				5E4B00000000000000000038 /* Debug */,
+				5E4B00000000000000000039 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		5E4B00000000000000000012 /* XCLocalSwiftPackageReference "SheketCore" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = SheketCore;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		5E4B00000000000000000013 /* SheketCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E4B00000000000000000012 /* XCLocalSwiftPackageReference "SheketCore" */;
+			productName = SheketCore;
+		};
+		5E4B00000000000000000014 /* SheketCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E4B00000000000000000012 /* XCLocalSwiftPackageReference "SheketCore" */;
+			productName = SheketCore;
+		};
+		5E4B00000000000000000015 /* SheketCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 5E4B00000000000000000012 /* XCLocalSwiftPackageReference "SheketCore" */;
+			productName = SheketCore;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = 5E4B00000000000000000001 /* Project object */;
+}
