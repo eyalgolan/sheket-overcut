@@ -26,8 +26,8 @@
     <string name="report_title">דיווח על שיחה</string>
     <string name="report_empty">עדיין אין שיחות שסוננו. מופיעות כאן רק שיחות ממספרים שאינם באנשי הקשר שלך.</string>
     <string name="report_number_unknown">חסוי או לא ידוע</string>
-    <string name="report_row_blocked">נחסמה</string>
-    <string name="report_row_rang">צלצלה</string>
+    <string name="report_row_blocked">%1$s · נחסמה</string>
+    <string name="report_row_rang">%1$s · צלצלה</string>
     <string name="report_action">דיווח</string>
     <string name="report_state_reported">דווחה</string>
     <string name="report_state_not_reportable">לא ניתן לדווח</string>

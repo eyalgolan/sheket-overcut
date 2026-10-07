@@ -2,16 +2,16 @@ package app.sheket.report
 
 import app.sheket.BuildConfig
 import app.sheket.core.SenderNormalizer
-import java.io.ByteArrayOutputStream
-import java.io.IOException
-import java.io.InputStream
-import java.net.HttpURLConnection
-import java.net.URL
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
 
 /** Outcome of [ReportClient.send]. */
 sealed interface ReportOutcome {

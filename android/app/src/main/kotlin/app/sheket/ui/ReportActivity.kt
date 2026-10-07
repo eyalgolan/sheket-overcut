@@ -155,8 +155,12 @@ class ReportActivity : Activity() {
                 // Numbers read left to right even in a Hebrew layout.
                 BidiFormatter.getInstance().unicodeWrap(number, TextDirectionHeuristics.LTR)
             }
-            val outcome = getString(if (entry.blocked) R.string.report_row_blocked else R.string.report_row_rang)
-            row.detail.text = dateFormat.format(Date(entry.at)) + " · " + outcome
+            // The time and the outcome; the time keeps its own direction in a Hebrew layout.
+            val time = BidiFormatter.getInstance().unicodeWrap(dateFormat.format(Date(entry.at)))
+            row.detail.text = getString(
+                if (entry.blocked) R.string.report_row_blocked else R.string.report_row_rang,
+                time,
+            )
 
             row.report.setOnClickListener(null)
             when {

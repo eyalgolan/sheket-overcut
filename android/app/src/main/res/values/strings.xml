@@ -26,8 +26,8 @@
     <string name="report_title">Report a call</string>
     <string name="report_empty">No screened calls yet. Only calls from numbers that are not in your contacts appear here.</string>
     <string name="report_number_unknown">Withheld or unknown</string>
-    <string name="report_row_blocked">Blocked</string>
-    <string name="report_row_rang">Rang</string>
+    <string name="report_row_blocked">%1$s · Blocked</string>
+    <string name="report_row_rang">%1$s · Rang</string>
     <string name="report_action">Report</string>
     <string name="report_state_reported">Reported</string>
     <string name="report_state_not_reportable">Not reportable</string>

@@ -373,7 +373,9 @@ class ReportClientTest {
                 } catch (e: IOException) {
                     // Closed at the end of the test.
                 }
-            }.apply { isDaemon = true; start() }
+            }
+            acceptor.isDaemon = true
+            acceptor.start()
 
             val target = URL("http://127.0.0.1:${socket.localPort}/v1/reports")
             assertEquals(ReportOutcome.NotSent(), client(target = target).send(NUMBER))
@@ -414,8 +416,14 @@ class ReportClientTest {
     @Test
     fun numbersThatAreNotE164AreRefusedWithoutARequest() {
         var idCalls = 0
-        val c = client(installId = { idCalls++; installIdValue })
-        for (number in listOf("", "+", "0501234567", "972501234567", "+0501234567", "+97250", "abc", " +972501234567")) {
+        val c = client(
+            installId = {
+                idCalls++
+                installIdValue
+            },
+        )
+        val notE164 = listOf("", "+", "0501234567", "972501234567", "+0501234567", "+97250", "abc", " +972501234567")
+        for (number in notE164) {
             assertEquals("number '$number'", ReportOutcome.Refused, c.send(number))
         }
         assertEquals(0, requests.size)
@@ -426,7 +434,12 @@ class ReportClientTest {
     @Test
     fun alreadyReportedNumberIsRefusedWithoutARequest() {
         val asked = mutableListOf<String>()
-        val c = client(isReported = { asked += it; true })
+        val c = client(
+            isReported = {
+                asked += it
+                true
+            },
+        )
 
         assertEquals(ReportOutcome.Refused, c.send(NUMBER))
 
@@ -473,7 +486,8 @@ class ReportClientTest {
         )
 
         assertEquals(ReportOutcome.Sent, c.send(NUMBER))
-        assertEquals(mapOf("a" to true, "b" to false, "c" to true, "d" to false), log.associate { it.id to it.reported })
+        val reportedById = log.associate { it.id to it.reported }
+        assertEquals(mapOf("a" to true, "b" to false, "c" to true, "d" to false), reportedById)
 
         // A second tap on the other row with the same number makes no request.
         assertEquals(ReportOutcome.Refused, c.send(NUMBER))

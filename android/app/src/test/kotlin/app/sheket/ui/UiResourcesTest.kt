@@ -229,13 +229,19 @@ class UiResourcesTest {
     }
 
     @Test
-    fun reportStringsTakeNoArguments() {
-        // ReportActivity calls getString and setText on these without arguments.
+    fun formatArgumentsUsedByReportScreen() {
+        // ReportActivity passes the formatted time to the row strings and no
+        // arguments to the other report_ strings.
+        val withArgs = mapOf(
+            "report_row_blocked" to listOf("%1\$s"),
+            "report_row_rang" to listOf("%1\$s"),
+        )
         val reportKeys = english.keys.filter { it.startsWith("report_") }
         assertTrue("no report_ strings", reportKeys.size >= 12)
         for (key in reportKeys) {
-            assertEquals("values/$key", emptyList<String>(), formatArgs(english.getValue(key)))
-            assertEquals("values-iw/$key", emptyList<String>(), formatArgs(hebrew.getValue(key)))
+            val args = withArgs[key].orEmpty()
+            assertEquals("values/$key", args, formatArgs(english.getValue(key)))
+            assertEquals("values-iw/$key", args, formatArgs(hebrew.getValue(key)))
         }
     }
 
