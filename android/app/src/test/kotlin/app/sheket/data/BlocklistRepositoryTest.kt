@@ -3,6 +3,8 @@ package app.sheket.data
 import app.sheket.data.TestDocuments.NEWER_VERSION
 import app.sheket.data.TestDocuments.SEED_GENERATED_AT
 import app.sheket.data.TestDocuments.SEED_VERSION
+import app.sheket.data.TestDocuments.TEST_CALL_NUMBERS
+import app.sheket.data.TestDocuments.TEST_CALL_PREFIXES
 import app.sheket.data.TestDocuments.TEST_GENERATED_AT
 import app.sheket.data.TestDocuments.TEST_LIST_NUMBER
 import org.junit.Assert.assertArrayEquals
@@ -55,8 +57,8 @@ class BlocklistRepositoryTest {
         assertEquals(ListSource.STORED, repo.summary.source)
         assertEquals(NEWER_VERSION, repo.summary.version)
         assertEquals(TEST_GENERATED_AT, repo.summary.generatedAt)
-        assertEquals(2, repo.summary.callNumbers)
-        assertEquals(2, repo.summary.callPrefixes)
+        assertEquals(TEST_CALL_NUMBERS.size, repo.summary.callNumbers)
+        assertEquals(TEST_CALL_PREFIXES.size, repo.summary.callPrefixes)
         assertTrue(repo.matcher.shouldBlock(TEST_LIST_NUMBER))
         assertEquals("\"v2\"", store.storedEtag)
     }

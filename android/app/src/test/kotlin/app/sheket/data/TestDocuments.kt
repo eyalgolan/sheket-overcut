@@ -1,10 +1,14 @@
 package app.sheket.data
 
+import app.sheket.core.BlocklistParser
+import app.sheket.core.CallMatcher
 import app.sheket.core.ContractFiles
+import app.sheket.core.ParseResult
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
@@ -21,8 +25,25 @@ object TestDocuments {
     val TEST_GENERATED_AT: String get() =
         ContractFiles.json("test-blocklist.json")["generated_at"]!!.jsonPrimitive.content
 
-    /** In `test-blocklist.json` `call_numbers`, not in the seed. */
-    const val TEST_LIST_NUMBER = "+972555001234"
+    /**
+     * The distinct entries of `test-blocklist.json` `call_numbers` and `call_prefixes`, in file order. Distinct
+     * because the schema allows duplicates and the parsed list (and so [BlocklistSummary]) holds sets.
+     */
+    val TEST_CALL_NUMBERS: List<String> get() = testStrings("call_numbers")
+    val TEST_CALL_PREFIXES: List<String> get() = testStrings("call_prefixes")
+
+    /**
+     * The first `test-blocklist.json` `call_numbers` entry that the seed does not block, by exact number or by
+     * prefix. Fails if the seed blocks every one of them, because the tests then cannot tell the lists apart.
+     */
+    val TEST_LIST_NUMBER: String get() {
+        val seedMatcher = CallMatcher((BlocklistParser.parse(seed) as ParseResult.Ok).blocklist)
+        return TEST_CALL_NUMBERS.firstOrNull { !seedMatcher.shouldBlock(it) }
+            ?: throw IllegalStateException(
+                "contract/seed-blocklist.json blocks every call_numbers entry of contract/test-blocklist.json; " +
+                    "the data tests need one test number that only the test list blocks",
+            )
+    }
 
     /** Higher than both contract lists, whichever of them is newer. */
     val NEWER_VERSION: Long get() = maxOf(SEED_VERSION, TEST_VERSION) + 1
@@ -75,6 +96,9 @@ object TestDocuments {
         val base = Json.parseToJsonElement(newer.toString(Charsets.UTF_8)).jsonObject
         return JsonObject(base + (key to value)).toString().toByteArray(Charsets.UTF_8)
     }
+
+    private fun testStrings(key: String): List<String> =
+        ContractFiles.json("test-blocklist.json")[key]!!.jsonArray.map { it.jsonPrimitive.content }.distinct()
 
     val corrupt: ByteArray = "{\"schema\": 1, \"version\": ".toByteArray(Charsets.UTF_8)
 }
