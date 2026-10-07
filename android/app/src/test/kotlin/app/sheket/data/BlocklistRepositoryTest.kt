@@ -1,10 +1,10 @@
 package app.sheket.data
 
+import app.sheket.data.TestDocuments.NEWER_VERSION
 import app.sheket.data.TestDocuments.SEED_GENERATED_AT
 import app.sheket.data.TestDocuments.SEED_VERSION
 import app.sheket.data.TestDocuments.TEST_GENERATED_AT
 import app.sheket.data.TestDocuments.TEST_LIST_NUMBER
-import app.sheket.data.TestDocuments.TEST_VERSION
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -47,13 +47,13 @@ class BlocklistRepositoryTest {
 
     @Test
     fun newerStoredListWinsOverTheSeedAndKeepsItsEtag() {
-        val store = FakeBlocklistStore(list = TestDocuments.test, storedEtag = "\"v2\"")
+        val store = FakeBlocklistStore(list = TestDocuments.newer, storedEtag = "\"v2\"")
         val repo = repository(store)
 
         repo.load()
 
         assertEquals(ListSource.STORED, repo.summary.source)
-        assertEquals(TEST_VERSION, repo.summary.version)
+        assertEquals(NEWER_VERSION, repo.summary.version)
         assertEquals(TEST_GENERATED_AT, repo.summary.generatedAt)
         assertEquals(2, repo.summary.callNumbers)
         assertEquals(2, repo.summary.callPrefixes)
@@ -117,13 +117,13 @@ class BlocklistRepositoryTest {
             { throw IOException("asset missing") },
         )
         for (seed in seeds) {
-            val store = FakeBlocklistStore(list = TestDocuments.test, storedEtag = "\"v2\"")
+            val store = FakeBlocklistStore(list = TestDocuments.newer, storedEtag = "\"v2\"")
             val repo = repository(store, seed)
 
             repo.load()
 
             assertEquals(ListSource.STORED, repo.summary.source)
-            assertEquals(TEST_VERSION, repo.summary.version)
+            assertEquals(NEWER_VERSION, repo.summary.version)
             assertEquals("\"v2\"", store.storedEtag)
         }
     }
@@ -165,7 +165,7 @@ class BlocklistRepositoryTest {
         repo.load()
         assertNone(repo)
 
-        store.list = TestDocuments.test
+        store.list = TestDocuments.newer
         repo.load()
 
         assertEquals(ListSource.STORED, repo.summary.source)
@@ -175,46 +175,49 @@ class BlocklistRepositoryTest {
     // --- accept(): the version gate (AC-3, spec 6.1) ---
 
     @Test
-    fun versionGateAcceptsSeedThenTest() {
+    fun versionGateAcceptsTheOlderContractListThenTheNewer() {
+        // AC-3: the unmodified seed and test lists, ordered by their real versions.
+        val (older, newer) = TestDocuments.contractListsOlderFirst
         val store = FakeBlocklistStore()
         val repo = repository(store, seed = { null })
         repo.load()
 
-        assertEquals(AcceptResult.ACCEPTED, repo.accept(TestDocuments.seed, "\"seed\""))
-        assertEquals(SEED_VERSION, repo.summary.version)
-        assertEquals(AcceptResult.ACCEPTED, repo.accept(TestDocuments.test, "\"test\""))
-        assertEquals(TEST_VERSION, repo.summary.version)
+        assertEquals(AcceptResult.ACCEPTED, repo.accept(older, "\"older\""))
+        assertEquals(TestDocuments.versionOf(older), repo.summary.version)
+        assertEquals(AcceptResult.ACCEPTED, repo.accept(newer, "\"newer\""))
+        assertEquals(TestDocuments.versionOf(newer), repo.summary.version)
         assertEquals(ListSource.STORED, repo.summary.source)
-        assertTrue(repo.matcher.shouldBlock(TEST_LIST_NUMBER))
-        assertArrayEquals(TestDocuments.test, store.list)
-        assertEquals("\"test\"", store.storedEtag)
+        assertArrayEquals(newer, store.list)
+        assertEquals("\"newer\"", store.storedEtag)
+        assertEquals(2, store.writes)
     }
 
     @Test
-    fun versionGateRejectsSeedAfterTest() {
+    fun versionGateRejectsTheOlderContractListAfterTheNewer() {
+        // AC-3: the same two lists in the reverse order.
+        val (older, newer) = TestDocuments.contractListsOlderFirst
         val store = FakeBlocklistStore()
         val repo = repository(store, seed = { null })
         repo.load()
 
-        assertEquals(AcceptResult.ACCEPTED, repo.accept(TestDocuments.test, "\"test\""))
-        assertEquals(AcceptResult.NOT_NEWER, repo.accept(TestDocuments.seed, "\"seed\""))
+        assertEquals(AcceptResult.ACCEPTED, repo.accept(newer, "\"newer\""))
+        assertEquals(AcceptResult.NOT_NEWER, repo.accept(older, "\"older\""))
 
-        assertEquals(TEST_VERSION, repo.summary.version)
-        assertTrue(repo.matcher.shouldBlock(TEST_LIST_NUMBER))
-        assertArrayEquals(TestDocuments.test, store.list)
-        assertEquals("\"test\"", store.storedEtag)
+        assertEquals(TestDocuments.versionOf(newer), repo.summary.version)
+        assertArrayEquals(newer, store.list)
+        assertEquals("\"newer\"", store.storedEtag)
         assertEquals(1, store.writes)
     }
 
     @Test
     fun versionGateRejectsAnEqualVersion() {
-        val store = FakeBlocklistStore(list = TestDocuments.test, storedEtag = "\"test\"")
+        val store = FakeBlocklistStore(list = TestDocuments.newer, storedEtag = "\"newer\"")
         val repo = repository(store)
         repo.load()
 
-        assertEquals(AcceptResult.NOT_NEWER, repo.accept(TestDocuments.test, "\"other\""))
+        assertEquals(AcceptResult.NOT_NEWER, repo.accept(TestDocuments.newer, "\"other\""))
 
-        assertEquals("\"test\"", store.storedEtag)
+        assertEquals("\"newer\"", store.storedEtag)
         assertEquals(0, store.writes)
     }
 
@@ -260,7 +263,7 @@ class BlocklistRepositoryTest {
         repo.load()
         val matcher = repo.matcher
 
-        assertEquals(AcceptResult.STORE_FAILED, repo.accept(TestDocuments.test, "\"test\""))
+        assertEquals(AcceptResult.STORE_FAILED, repo.accept(TestDocuments.newer, "\"newer\""))
 
         assertSame(matcher, repo.matcher)
         assertEquals(ListSource.SEED, repo.summary.source)
@@ -268,8 +271,8 @@ class BlocklistRepositoryTest {
         assertFalse(repo.matcher.shouldBlock(TEST_LIST_NUMBER))
 
         store.writeFailure = null
-        assertEquals(AcceptResult.ACCEPTED, repo.accept(TestDocuments.test, "\"test\""))
-        assertEquals("\"test\"", store.storedEtag)
+        assertEquals(AcceptResult.ACCEPTED, repo.accept(TestDocuments.newer, "\"newer\""))
+        assertEquals("\"newer\"", store.storedEtag)
         assertTrue(repo.matcher.shouldBlock(TEST_LIST_NUMBER))
     }
 
@@ -279,22 +282,22 @@ class BlocklistRepositoryTest {
         val repo = repository(store)
         repo.load()
 
-        assertEquals(AcceptResult.ACCEPTED, repo.accept(TestDocuments.test, null))
+        assertEquals(AcceptResult.ACCEPTED, repo.accept(TestDocuments.newer, null))
 
         assertNull(store.storedEtag)
-        assertArrayEquals(TestDocuments.test, store.list)
+        assertArrayEquals(TestDocuments.newer, store.list)
     }
 
     @Test
     fun anAcceptedListIsWhatTheNextLoadReads() {
         val store = FakeBlocklistStore()
-        repository(store).apply { load() }.accept(TestDocuments.test, "\"test\"")
+        repository(store).apply { load() }.accept(TestDocuments.newer, "\"newer\"")
 
         val restarted = repository(store)
         restarted.load()
 
         assertEquals(ListSource.STORED, restarted.summary.source)
-        assertEquals(TEST_VERSION, restarted.summary.version)
-        assertEquals("\"test\"", store.storedEtag)
+        assertEquals(NEWER_VERSION, restarted.summary.version)
+        assertEquals("\"newer\"", store.storedEtag)
     }
 }

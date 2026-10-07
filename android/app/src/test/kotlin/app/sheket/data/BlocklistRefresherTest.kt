@@ -1,8 +1,8 @@
 package app.sheket.data
 
+import app.sheket.data.TestDocuments.NEWER_VERSION
 import app.sheket.data.TestDocuments.SEED_VERSION
 import app.sheket.data.TestDocuments.TEST_LIST_NUMBER
-import app.sheket.data.TestDocuments.TEST_VERSION
 import com.sun.net.httpserver.HttpExchange
 import com.sun.net.httpserver.HttpServer
 import org.junit.After
@@ -166,15 +166,15 @@ class BlocklistRefresherTest {
 
     @Test
     fun newerListRecordsSuccessStoresTheEtagAndSwapsTheMatcher() {
-        handler = { respond(it, 200, TestDocuments.test, etag = "\"v2\"") }
+        handler = { respond(it, 200, TestDocuments.newer, etag = "\"v2\"") }
 
         assertEquals(RefreshOutcome.UPDATED, refresher().refresh())
 
         assertEquals(1_000L, store.lastSuccess)
         assertEquals("\"v2\"", store.storedEtag)
-        assertArrayEquals(TestDocuments.test, store.list)
+        assertArrayEquals(TestDocuments.newer, store.list)
         assertEquals(ListSource.STORED, repository.summary.source)
-        assertEquals(TEST_VERSION, repository.summary.version)
+        assertEquals(NEWER_VERSION, repository.summary.version)
         assertTrue(repository.matcher.shouldBlock(TEST_LIST_NUMBER))
     }
 
@@ -191,7 +191,7 @@ class BlocklistRefresherTest {
 
     @Test
     fun anOlderListKeepsTheStoredListAndItsEtag() {
-        handler = { respond(it, 200, TestDocuments.test, etag = "\"v2\"") }
+        handler = { respond(it, 200, TestDocuments.newer, etag = "\"v2\"") }
         refresher().refresh()
         clock = 2_000L
         handler = { respond(it, 200, TestDocuments.seed, etag = "\"seed\"") }
@@ -200,7 +200,7 @@ class BlocklistRefresherTest {
 
         assertEquals(2_000L, store.lastSuccess)
         assertEquals("\"v2\"", store.storedEtag)
-        assertEquals(TEST_VERSION, repository.summary.version)
+        assertEquals(NEWER_VERSION, repository.summary.version)
         assertEquals(1, store.writes)
     }
 
@@ -242,7 +242,7 @@ class BlocklistRefresherTest {
     @Test
     fun aListThatCannotBeStoredRecordsNoSuccess() {
         store.writeFailure = IOException("disk full")
-        handler = { respond(it, 200, TestDocuments.test, etag = "\"v2\"") }
+        handler = { respond(it, 200, TestDocuments.newer, etag = "\"v2\"") }
 
         assertEquals(RefreshOutcome.FAILED, refresher().refresh())
 
@@ -255,7 +255,7 @@ class BlocklistRefresherTest {
 
     @Test
     fun aBodyOverTheCapWithContentLengthIsRejected() {
-        val body = padded(TestDocuments.test, BlocklistRefresher.MAX_BODY_BYTES + 1)
+        val body = padded(TestDocuments.newer, BlocklistRefresher.MAX_BODY_BYTES + 1)
         handler = { respond(it, 200, body, etag = "\"big\"") }
 
         assertEquals(RefreshOutcome.REJECTED, refresher().refresh())
@@ -267,7 +267,7 @@ class BlocklistRefresherTest {
 
     @Test
     fun aChunkedBodyOverTheCapIsRejected() {
-        val body = padded(TestDocuments.test, BlocklistRefresher.MAX_BODY_BYTES + 1)
+        val body = padded(TestDocuments.newer, BlocklistRefresher.MAX_BODY_BYTES + 1)
         handler = { respondChunked(it, body) }
 
         assertEquals(RefreshOutcome.REJECTED, refresher().refresh())
@@ -278,12 +278,12 @@ class BlocklistRefresherTest {
 
     @Test
     fun aChunkedBodyOfExactlyTheCapIsAccepted() {
-        val body = padded(TestDocuments.test, BlocklistRefresher.MAX_BODY_BYTES)
+        val body = padded(TestDocuments.newer, BlocklistRefresher.MAX_BODY_BYTES)
         handler = { respondChunked(it, body) }
 
         assertEquals(RefreshOutcome.UPDATED, refresher().refresh())
 
-        assertEquals(TEST_VERSION, repository.summary.version)
+        assertEquals(NEWER_VERSION, repository.summary.version)
         assertEquals(BlocklistRefresher.MAX_BODY_BYTES, store.list!!.size)
     }
 
@@ -293,7 +293,7 @@ class BlocklistRefresherTest {
     fun otherStatusesRecordNothing() {
         store.storedEtag = "\"kept\""
         for (status in listOf(500, 503, 404, 204)) {
-            handler = { respond(it, status, if (status == 204) null else TestDocuments.test, etag = "\"v2\"") }
+            handler = { respond(it, status, if (status == 204) null else TestDocuments.newer, etag = "\"v2\"") }
 
             assertEquals("status $status", RefreshOutcome.FAILED, refresher().refresh())
 
@@ -343,7 +343,7 @@ class BlocklistRefresherTest {
     fun aReadTimeoutRecordsNothing() {
         handler = { exchange ->
             release.await(10, TimeUnit.SECONDS)
-            respond(exchange, 200, TestDocuments.test, etag = "\"v2\"")
+            respond(exchange, 200, TestDocuments.newer, etag = "\"v2\"")
         }
 
         val started = System.nanoTime()
@@ -358,8 +358,8 @@ class BlocklistRefresherTest {
     @Test
     fun aTimeoutMidBodyRecordsNothing() {
         handler = { exchange ->
-            exchange.sendResponseHeaders(200, TestDocuments.test.size.toLong())
-            exchange.responseBody.write(TestDocuments.test, 0, 10)
+            exchange.sendResponseHeaders(200, TestDocuments.newer.size.toLong())
+            exchange.responseBody.write(TestDocuments.newer, 0, 10)
             exchange.responseBody.flush()
             release.await(10, TimeUnit.SECONDS)
         }
@@ -378,7 +378,7 @@ class BlocklistRefresherTest {
             if (exchange.requestHeaders.getFirst("If-None-Match") == "\"v2\"") {
                 respond(exchange, 304)
             } else {
-                respond(exchange, 200, TestDocuments.test, etag = "\"v2\"")
+                respond(exchange, 200, TestDocuments.newer, etag = "\"v2\"")
             }
         }
         val refresher = refresher()
@@ -389,7 +389,7 @@ class BlocklistRefresherTest {
 
         assertEquals(listOf(null, "\"v2\""), requests.map { it.ifNoneMatch })
         assertEquals(2_000L, store.lastSuccess)
-        assertEquals(TEST_VERSION, repository.summary.version)
+        assertEquals(NEWER_VERSION, repository.summary.version)
     }
 
     @Test
