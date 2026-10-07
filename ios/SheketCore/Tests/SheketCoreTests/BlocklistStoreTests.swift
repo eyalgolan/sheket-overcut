@@ -240,7 +240,7 @@ final class BlocklistStoreTests: XCTestCase {
         XCTAssertEqual(try stateOnDisk().etag, "x")
 
         // An app-side write saves the cleared ETag.
-        XCTAssertFalse(try store.repairIfNeeded())
+        XCTAssertFalse(try store.repairIfNeeded(now: t1))
         XCTAssertNil(try stateOnDisk().etag)
     }
 
@@ -249,12 +249,12 @@ final class BlocklistStoreTests: XCTestCase {
     func testRepairNotNeededAfterAccept() throws {
         XCTAssertEqual(try store.accept(Contract.data(Self.seedFile), etag: "x", now: t0), .accepted)
         let before = snapshot()
-        XCTAssertFalse(try store.repairIfNeeded())
+        XCTAssertFalse(try store.repairIfNeeded(now: t1))
         XCTAssertEqual(snapshot(), before)
     }
 
     func testRepairOnEmptyStore() throws {
-        XCTAssertFalse(try store.repairIfNeeded())
+        XCTAssertFalse(try store.repairIfNeeded(now: t1))
         XCTAssertEqual(snapshot(), [nil, nil, nil])
     }
 
@@ -263,7 +263,7 @@ final class BlocklistStoreTests: XCTestCase {
         XCTAssertEqual(try store.accept(Contract.data(Self.testFile), etag: "x", now: t0), .accepted)
         try FileManager.default.removeItem(at: url(Self.stateFileName))
 
-        XCTAssertTrue(try store.repairIfNeeded())
+        XCTAssertTrue(try store.repairIfNeeded(now: t1))
 
         XCTAssertTrue(exists(Self.stateFileName))
         XCTAssertEqual(try storedEntries(), CallDirectoryEntries.build(testList))
@@ -271,7 +271,26 @@ final class BlocklistStoreTests: XCTestCase {
         XCTAssertEqual(state.version, Self.testVersion)
         XCTAssertEqual(state.entriesVersion, Self.testVersion)
         XCTAssertNil(state.etag, "no old state, so no ETag to keep")
-        XCTAssertFalse(try store.repairIfNeeded(), "a repaired store needs no further repair")
+        XCTAssertEqual(state.firstRunAt, t1, "no old state, so the staleness clock starts now")
+        XCTAssertFalse(try store.repairIfNeeded(now: t1), "a repaired store needs no further repair")
+    }
+
+    func testRepairWithoutStateSetsFirstRunAt() throws {
+        // Only the list was written, e.g. the first accept of the seed was
+        // interrupted before state.json.
+        try Contract.data(Self.testFile).write(to: url(BlocklistStore.blocklistFileName))
+        XCTAssertNil(store.state())
+
+        XCTAssertTrue(try store.repairIfNeeded(now: t1))
+
+        let state = try XCTUnwrap(store.state())
+        XCTAssertEqual(state.firstRunAt, t1)
+        XCTAssertNil(state.lastSuccessAt)
+        XCTAssertFalse(RefreshPolicy.isStale(state: state, now: t1 + RefreshPolicy.staleAfter))
+        XCTAssertTrue(
+            RefreshPolicy.isStale(state: state, now: t1 + RefreshPolicy.staleAfter + 1),
+            "an offline device must still go stale after a repair"
+        )
     }
 
     func testRepairVersionMismatchClearsETag() throws {
@@ -287,7 +306,7 @@ final class BlocklistStoreTests: XCTestCase {
             lastReloadError: "boom"
         ))
 
-        XCTAssertTrue(try store.repairIfNeeded())
+        XCTAssertTrue(try store.repairIfNeeded(now: t1))
 
         let state = try XCTUnwrap(store.state())
         XCTAssertEqual(state.version, Self.testVersion)
@@ -309,7 +328,7 @@ final class BlocklistStoreTests: XCTestCase {
             firstRunAt: t0
         ))
 
-        XCTAssertTrue(try store.repairIfNeeded())
+        XCTAssertTrue(try store.repairIfNeeded(now: t1))
 
         XCTAssertTrue(exists(BlocklistStore.callDirectoryFileName))
         XCTAssertEqual(try storedEntries(), CallDirectoryEntries.build(testList))
@@ -396,7 +415,7 @@ final class BlocklistStoreTests: XCTestCase {
 
         XCTAssertNil(store.current())
         XCTAssertNil(store.state())
-        XCTAssertFalse(try store.repairIfNeeded())
+        XCTAssertFalse(try store.repairIfNeeded(now: t1))
         XCTAssertEqual(snapshot(), before)
     }
 
@@ -405,7 +424,7 @@ final class BlocklistStoreTests: XCTestCase {
         try Data("{not json".utf8).write(to: url(BlocklistStore.blocklistFileName))
         let entriesBefore = bytes(BlocklistStore.callDirectoryFileName)
 
-        XCTAssertFalse(try store.repairIfNeeded(), "there is no list to rebuild from")
+        XCTAssertFalse(try store.repairIfNeeded(now: t1), "there is no list to rebuild from")
 
         let state = try stateOnDisk()
         XCTAssertNil(state.etag)
@@ -420,7 +439,7 @@ final class BlocklistStoreTests: XCTestCase {
         try Data("not json".utf8).write(to: url(Self.stateFileName))
         XCTAssertNil(store.state())
 
-        XCTAssertTrue(try store.repairIfNeeded())
+        XCTAssertTrue(try store.repairIfNeeded(now: t1))
 
         XCTAssertEqual(try storedEntries(), CallDirectoryEntries.build(testList))
         let state = try XCTUnwrap(store.state())
@@ -428,6 +447,7 @@ final class BlocklistStoreTests: XCTestCase {
         XCTAssertEqual(state.entriesVersion, Self.testVersion)
         XCTAssertNil(state.etag, "an unreadable state has no ETag to keep")
         XCTAssertNil(state.lastSuccessAt)
-        XCTAssertFalse(try store.repairIfNeeded())
+        XCTAssertEqual(state.firstRunAt, t1)
+        XCTAssertFalse(try store.repairIfNeeded(now: t1))
     }
 }

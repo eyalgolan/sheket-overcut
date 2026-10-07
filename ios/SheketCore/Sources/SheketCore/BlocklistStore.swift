@@ -25,7 +25,7 @@ import Foundation
 //   `repairIfNeeded`) save a cleared ETag to disk.
 // - Writes are atomic and go in the order `blocklist.json`,
 //   `call-directory.bin`, `state.json`. An interrupted sequence leaves
-//   `state.json` behind the list, which `repairIfNeeded()` detects and fixes.
+//   `state.json` behind the list, which `repairIfNeeded(now:)` detects and fixes.
 //
 // The current time is always passed in; nothing here reads the clock.
 
@@ -182,8 +182,10 @@ public final class BlocklistStore {
     /// interrupted `accept`. Returns true if anything was rewritten.
     ///
     /// The old state's timestamps and reload error are kept. Its ETag is kept
-    /// only when it belongs to the stored list's version.
-    public func repairIfNeeded() throws -> Bool {
+    /// only when it belongs to the stored list's version. When there is no
+    /// readable old state, `firstRunAt` is set to `now` so the staleness clock
+    /// still starts; `now` is not used when nothing is rewritten.
+    public func repairIfNeeded(now: Date) throws -> Bool {
         guard let list = readList()?.list else {
             try clearETagIfListMissing()
             return false
@@ -197,7 +199,7 @@ public final class BlocklistStore {
             entriesVersion: list.version,
             etag: old?.version == list.version ? old?.etag : nil,
             lastSuccessAt: old?.lastSuccessAt,
-            firstRunAt: old?.firstRunAt,
+            firstRunAt: old?.firstRunAt ?? now,
             lastReloadError: old?.lastReloadError
         ))
         return true
