@@ -514,11 +514,12 @@ def _load_previous(bucket: str) -> tuple[dict | None, int]:
     A missing object (``NoSuchKey``) is the first run and gives ``(None, 0)``;
     any other S3 error propagates, so the run fails and the published
     blocklist stays in place. An object that is not strict UTF-8 JSON holding
-    an object also gives ``(None, 0)``, and a ``version`` that is not an
-    integer >= 0 is replaced by 0; both are logged with the reason only, never
-    the content. An unusable previous object therefore means the next run
-    always writes, and ``version = max(now, previous_version + 1)`` still
-    keeps the version increasing.
+    an object, or an object whose ``version`` is not an integer >= 0, also
+    gives ``(None, 0)``; both are logged with the reason only, never the
+    content. An unusable previous object therefore means the next run always
+    writes, so a malformed published document is replaced even when its
+    content compares equal, and ``version = max(now, previous_version + 1)``
+    still keeps the version increasing.
     """
     try:
         response = _s3().get_object(Bucket=bucket, Key=BLOCKLIST_KEY)
@@ -547,7 +548,7 @@ def _load_previous(bucket: str) -> tuple[dict | None, int]:
     logger.error(
         "previous blocklist version invalid (type=%s); using 0", type(version).__name__
     )
-    return doc, 0
+    return None, 0
 
 
 def _content(doc: dict) -> dict:
@@ -579,3 +580,55 @@ def _should_write(new_doc: dict, previous_doc: dict | None, now: int) -> bool:
     if generated_at.tzinfo is None:
         generated_at = generated_at.replace(tzinfo=timezone.utc)
     return datetime.fromtimestamp(now, timezone.utc) - generated_at >= FORCED_REFRESH
+
+
+def handler(event, context) -> None:
+    """Aggregate Lambda entry point; ``event`` and ``context`` are unused.
+
+    Reads the configuration and the contract, takes the clock once, loads the
+    reports, the overrides and the previous blocklist, builds the new
+    document and validates it before anything is written. The document is
+    written to ``v1/blocklist.json`` only when ``_should_write`` says so, and
+    one log line records the outcome with counts only.
+
+    Any exception propagates: Lambda reports an error, the Errors alarm fires
+    and the published blocklist stays in place (spec 7). The success
+    heartbeat is emitted only after a successful run.
+    """
+    cfg = _config()
+    curated, schema = _load_contract()
+    now = _now()
+
+    reports = _load_reports(cfg.table, now)
+    overrides = _load_overrides(cfg.table)
+    previous_doc, previous_version = _load_previous(cfg.bucket)
+
+    doc = build_blocklist(
+        curated,
+        reports,
+        overrides,
+        now,
+        previous_version,
+        cfg.min_installs,
+        cfg.min_networks,
+    )
+    # Before any write: an invalid document raises and nothing is written.
+    validate_blocklist(doc, schema)
+
+    written = _should_write(doc, previous_doc, now)
+    if written:
+        _s3().put_object(
+            Bucket=cfg.bucket,
+            Key=BLOCKLIST_KEY,
+            Body=serialize_blocklist(doc).encode("utf-8"),
+            ContentType=CONTENT_TYPE,
+            CacheControl=CACHE_CONTROL,
+        )
+
+    logger.info(
+        "blocklist %s: version=%d call_numbers=%d sms_senders=%d",
+        "written" if written else "unchanged",
+        doc["version"] if written else previous_version,
+        len(doc["call_numbers"]),
+        len(doc["sms_senders"]),
+    )
