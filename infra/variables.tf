@@ -30,3 +30,14 @@ variable "min_networks" {
     error_message = "The min_networks must be an integer >= 1; the aggregate Lambda parses it as a base-10 integer."
   }
 }
+
+variable "alarm_email" {
+  description = "Optional email address that receives the alarm notifications (SNS email subscription). Leave empty for no subscription. Set it only in a gitignored *.tfvars file, never in source. The recipient is provisional until the owner settles Decision 4 (who receives the alarms)."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.alarm_email == "" || can(regex("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$", var.alarm_email))
+    error_message = "The alarm_email must be empty or a single email address such as name@example.com."
+  }
+}
