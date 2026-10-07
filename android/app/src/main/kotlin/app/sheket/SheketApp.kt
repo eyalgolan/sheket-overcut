@@ -9,6 +9,8 @@ import app.sheket.data.BlocklistRefresher
 import app.sheket.data.BlocklistRepository
 import app.sheket.data.BlocklistStore
 import app.sheket.data.RefreshJobService
+import app.sheket.report.InstallId
+import app.sheket.report.ReportClient
 import app.sheket.screening.ScreenedCallLog
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -39,6 +41,16 @@ class SheketApp : Application() {
     val refresher: BlocklistRefresher by lazy { BlocklistRefresher(repository, store) }
 
     val screenedCallLog: ScreenedCallLog by lazy { ScreenedCallLog(this) }
+
+    val installId: InstallId by lazy { InstallId(this) }
+
+    val reportClient: ReportClient by lazy {
+        ReportClient(
+            installId = { installId.get() },
+            isReported = { number -> screenedCallLog.entries().any { it.number == number && it.reported } },
+            markReported = screenedCallLog::markReported,
+        )
+    }
 
     override fun onCreate() {
         super.onCreate()
