@@ -531,9 +531,13 @@ def _load_previous(bucket: str) -> tuple[dict | None, int]:
     ``(None, 0)``), so the run writes a fresh list at version ``now`` instead
     of failing every run in ``_generated_at``. An unusable previous object
     therefore means the next run always writes, so a malformed published
-    document is replaced even when its content compares equal, and
-    ``version = max(now, previous_version + 1)`` still keeps the version
-    increasing.
+    document is replaced even when its content compares equal.
+
+    That write restarts the version at ``now``. If the stored version was
+    ahead of the clock (always the case above ``MAX_VERSION``), the published
+    version moves backwards, which departs from spec 6.1, and clients that
+    hold the higher version ignore every later list until they are reset by
+    hand.
     """
     try:
         response = _s3().get_object(Bucket=bucket, Key=BLOCKLIST_KEY)
